@@ -8,15 +8,13 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework;
+using StardewValley.Internal;
 
 namespace Stardew_100_Percent_Mod
 {
     /// <summary>The mod entry point.</summary>
     internal sealed class ModEntry : Mod
     {
-
-        private SpriteBatch spriteBatch;
-        IModHelper helper;
 
         /*********
         ** Public methods
@@ -25,31 +23,14 @@ namespace Stardew_100_Percent_Mod
         /// <param name="helper">Provides simplified APIs for writing mods.</param>
         public override void Entry(IModHelper helper)
         {
-            this.helper = helper;
-            spriteBatch = new SpriteBatch(Game1.graphics.GraphicsDevice);
-            spriteBatch.Begin();
             helper.Events.Input.ButtonPressed += this.OnButtonPressed;
             helper.Events.GameLoop.UpdateTicking += OnUpdateTicked;
-            //helper.Events.Display.Rendered += this.OnRendered;
             helper.Events.Display.RenderedHud += this.OnRenderedHud;
 
-        }
-
-        public new void Dispose()
-        {
-            // Custom logic specific to ModEntry before calling base.Dispose
-            Console.WriteLine("ModEntry-specific cleanup before calling base Dispose.");
-            spriteBatch.End();
-
-
-            // Call base.Dispose() explicitly
-            base.Dispose();
-
-            // Additional cleanup for ModEntry after calling base.Dispose (if necessary)
-            Console.WriteLine("ModEntry-specific cleanup after calling base Dispose.");
+            Menu.SetMonitor(this.Monitor);
+            Menu.AddDebugTasks();
 
         }
-
 
         /*********
         ** Private methods
@@ -74,49 +55,49 @@ namespace Stardew_100_Percent_Mod
 
         private void OnRenderedHud(object? sender, RenderedHudEventArgs e) 
         {
-            //tp
-            List<string> text = new List<string>();
+            SpriteBatch spriteBatch = e.SpriteBatch;
+            Menu.DrawMenuBackground(spriteBatch);
+            Rectangle r = new Rectangle(0, 0, Game1.viewport.Width, Game1.viewport.Height);
+            return;
+            spriteBatch.Draw(Game1.staminaRect, r, Color.Green);
 
+            const char startingChar = 'y';
 
-            const int widthCount = 2;
-            const int heightCount = 2;
+            const int count = 8;
 
-            for (int i = 0; i < heightCount; i++)
-            {
-                string s1 = "";
-                char c1 = (char)87;
-
-                for (int j = 0; j < widthCount; j++)
-                {
-                    s1 += c1;
-                }
-
-                text.Add(s1);
-            }
-
-            const int widthOffset = 12;
-            const int heightOffset = 12;
-            //todo scale the width and height of the square based on the text (no wrapping)
-            //float backgroundWidth = Game1.viewport.Width * .02f * text.OrderByDescending(s => s.Length).First().Length + widthOffset;
-            float backgroundWidth = 50 * text.OrderByDescending(s => s.Length).First().Length + widthOffset;
-
-            //float backgroundHeight = Game1.viewport.Height * .03f * heightCount + heightOffset;
-            float backgroundHeight = 50 * heightCount + heightOffset;
-
-            e.SpriteBatch.Draw(Game1.staminaRect, new Rectangle(0, 0, (int)Math.Ceiling(backgroundWidth), (int)Math.Ceiling(backgroundHeight)), Color.Black * 0.5f);
-
-            //the offset of the text
-            Vector2 startingPosition = new Vector2(widthOffset, heightOffset);
-            const int heightDifference = 40;
-            for (int i = 0; i < text.Count; i++)
-            {
-                Vector2 newPos = startingPosition;
-                newPos.Y += heightDifference * i;
-                e.SpriteBatch.DrawString(Game1.dialogueFont, text[i], newPos, Color.White);
-
+            for (int i = 0; i < count; i++)
+            { 
+                RenderLetterMenu((char)(startingChar + i), spriteBatch, i * 300);
             }
         }
 
+        /// <summary>
+        /// Debug method to test how much space a character text while drawing. 
+        /// Will draw 2 menu: one for a single character, 
+        /// and one for a string of 5 of the same character
+        /// </summary>
+        /// <param name="c">the character that will be drawn</param>
+        /// <param name="spriteBatch">used to start drawing</param>
+        /// <param name="xOfsset">Where the menus will be drawn on the x axis</param>
+        private void RenderLetterMenu(char c, SpriteBatch spriteBatch, int xOfsset)
+        {
+            string s = "";
+            //                                 1    2   3   4    5   6   7    8   9
+            int[] charSizes = new int[] { 10, 15, 20, 25, 30, 35, 40, 45, 50 };
+
+            for (int i = 0; i < 5; i++)
+            {
+                s += c;
+            }
+
+            for (int i = 0; i < charSizes.Length; i++)
+            {
+                int height = i * 100;
+                int charSize = charSizes[i];
+                Menu.DebugDrawMenuBackground(spriteBatch, "" + c, xOfsset, height, charSize);
+                Menu.DebugDrawMenuBackground(spriteBatch, s, xOfsset, height + 50, charSize);
+            }
+        }
 
         /// <summary>
         /// Helper method to log statements to the console
