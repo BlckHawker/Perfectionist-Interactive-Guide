@@ -1,0 +1,10 @@
+{
+  "Name": "Perfectionist Interactive Guide",
+  "Author": "Hawker",
+  "Version": "1.0.0",
+  "Description": "This mod will give you interactive steps on how to 100% the game. Mainly for people who want to beat the game without needing to look up the wiki every 2 seconds.",
+  "UniqueID": "Hawker.PerfectionistInteractiveGuide",
+  "EntryDll": "Perfectionist Interactive Guide.dll",
+  "MinimumApiVersion": "4.0.0",
+  "UpdateKeys": []
+}
