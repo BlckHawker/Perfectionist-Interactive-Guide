@@ -74,24 +74,31 @@ namespace Stardew_100_Percent_Mod
             { 'x', 25 },
             { 'y', 25 },
             { 'z', 25 },
+            { '0', 25 },
+            { '1', 25 },
+            { '2', 25 },
+            { '3', 25 },
+            { '4', 25 },
+            { '5', 25 },
+            { '6', 25 },
+            { '7', 25 },
+            { '8', 25 },
+            { '9', 25 },
             { ' ', 25 },
+            { '(', 25 },
+            { ')', 25 },
+
+
         };
 
+
+
         /// <summary>
-        /// Debug method to add random items to the 'Tasks' list
+        /// Set the list of tasks to be displayed
         /// </summary>
-        public static void AddDebugTasks()
+        public static void SetTasks(List<Task> tasks)
         {
-            Tasks.AddRange(new string[]{"Buy groceries",
-            "Clean the house",
-            "Finish C# project",
-            "Call mom",
-            "Walk the dog",
-            "Send emails to clients",
-            "Prepare presentation slides",
-            "Attend team meeting at 3pm",
-            "Book dentist appointment",
-            "Read 30 pages of a book" });
+            Tasks = tasks.Select(t => t.displayName).ToList();
         }
 
         /// <summary>
@@ -105,10 +112,16 @@ namespace Stardew_100_Percent_Mod
 
         public static void DrawMenuBackground(SpriteBatch spriteBatch, int menuXPostion, int menuYPosition)
         {
+            //if there are no tasks, do not draw anything
+            if (Tasks.Count == 0)
+            {
+                return;
+            }
             //the amount of vertical space to move down starting from the top left of the current task
             const int heightDifference = 40;
 
             //to get the width of the background, get what the width should be for a specifc character and sum the values
+            
             string longestString = Tasks.OrderByDescending(s => s.Length).First();
 
             //a custom exception just in case the char key doesn't exist

@@ -15,7 +15,6 @@ namespace Stardew_100_Percent_Mod
     /// <summary>The mod entry point.</summary>
     internal sealed class ModEntry : Mod
     {
-
         /*********
         ** Public methods
         *********/
@@ -23,52 +22,44 @@ namespace Stardew_100_Percent_Mod
         /// <param name="helper">Provides simplified APIs for writing mods.</param>
         public override void Entry(IModHelper helper)
         {
-            helper.Events.Input.ButtonPressed += this.OnButtonPressed;
             helper.Events.GameLoop.UpdateTicking += OnUpdateTicked;
             helper.Events.Display.RenderedHud += this.OnRenderedHud;
 
             Menu.SetMonitor(this.Monitor);
-            Menu.AddDebugTasks();
 
+            //initialize task manager
+            TaskManager.InitalizeInstance();
         }
 
         /*********
         ** Private methods
         *********/
-        /// <summary>Raised after the player presses a button on the keyboard, controller, or mouse.</summary>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
-        private void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
-        {
-            // ignore if player hasn't loaded a save yet
-            if (!Context.IsWorldReady)
-                return;
-
-            // print button presses to the console window
-            Log($"{Game1.player.Name} pressed {e.Button}.");
-        }
-
 
         private void OnUpdateTicked(object? sender, UpdateTickingEventArgs e)
         {
+            if (!Context.IsWorldReady)
+                return;
+
+            //todo this should all be mobed to TaskManager
+
+
+            //update all tasks if they're complete
+            TaskManager.Instance.UpdateTaskCompletion();
+
+            //check which tasks the player can do
+            List<Task> tasksToDo = TaskManager.Instance.GetAvaiableTasks();
+
+            //of the tasks the player can do, update their display name
+            tasksToDo.ForEach(task => task.UpdateTaskDisplayName());
+            Menu.SetTasks(tasksToDo);
+
+
+
         }
 
         private void OnRenderedHud(object? sender, RenderedHudEventArgs e) 
         {
-            SpriteBatch spriteBatch = e.SpriteBatch;
-            Menu.DrawMenuBackground(spriteBatch);
-            Rectangle r = new Rectangle(0, 0, Game1.viewport.Width, Game1.viewport.Height);
-            return;
-            spriteBatch.Draw(Game1.staminaRect, r, Color.Green);
-
-            const char startingChar = 'y';
-
-            const int count = 8;
-
-            for (int i = 0; i < count; i++)
-            { 
-                RenderLetterMenu((char)(startingChar + i), spriteBatch, i * 300);
-            }
+            Menu.DrawMenuBackground(e.SpriteBatch);
         }
 
         /// <summary>
