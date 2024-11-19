@@ -40,20 +40,10 @@ namespace Stardew_100_Percent_Mod
             if (!Context.IsWorldReady)
                 return;
 
-            //todo this should all be mobed to TaskManager
-
-
-            //update all tasks if they're complete
-            TaskManager.Instance.UpdateTaskCompletion();
-
-            //check which tasks the player can do
-            List<Task> tasksToDo = TaskManager.Instance.GetAvaiableTasks();
-
-            //of the tasks the player can do, update their display name
-            tasksToDo.ForEach(task => task.UpdateTaskDisplayName());
-            Menu.SetTasks(tasksToDo);
-
-
+            //Go through the decsion tree and check what the desired action is
+            Action action = (Action)TaskManager.Instance.root.MakeDecision();
+            //new way with decision tree
+            Menu.SetTasks(new[] { action }.ToList() ) ;
 
         }
 

@@ -15,6 +15,7 @@ namespace Stardew_100_Percent_Mod
         //the list of tasks that need to be displayed
         public static List<string> Tasks = new List<string>();
 
+
         //offeset so text isn't it very top left corner of the menu
         private const int widthOffset = 12;
         private const int heightOffset = 12;
@@ -91,14 +92,10 @@ namespace Stardew_100_Percent_Mod
 
         };
 
+        public static void SetTasks(List<Action> actions)
+        { 
+            Tasks = actions.Select(t => t.DisplayName).ToList();
 
-
-        /// <summary>
-        /// Set the list of tasks to be displayed
-        /// </summary>
-        public static void SetTasks(List<Task> tasks)
-        {
-            Tasks = tasks.Select(t => t.displayName).ToList();
         }
 
         /// <summary>

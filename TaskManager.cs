@@ -1,4 +1,5 @@
-﻿using StardewValley;
+﻿using StardewModdingAPI;
+using StardewValley;
 using StardewValley.TerrainFeatures;
 using System;
 using System.Collections.Generic;
@@ -16,72 +17,39 @@ namespace Stardew_100_Percent_Mod
         public static TaskManager Instance;
         //todo implement a selector and sequence ckasses
         private List<Task> tree;
+        public DecisionTreeNode root { get; private set; }
 
         public List<Task> avaibleTasks;
 
         public delegate bool TaskComplateDelegate();
         public delegate string UpdateTaskDisplayNameDelegate(Task t);
 
-
-
         public TaskManager()
         {
 
         }
 
-        private void UpdateAvaibleTasks()
-        {
-            //todo if any of the tasks have any prerqes that are not done, don't assign this task
-            //todo don't assign tasks that are completed
-
-            Instance.avaibleTasks = new List<Task>();
-            foreach (Task t in tree)
-            {
-                if (!t.TaskComplete() && (t.prerequisites == null || t.prerequisites.All(task => task.TaskComplete())))
-                {
-                    t.UpdateTaskComplete();
-                    avaibleTasks.Add(t);
-                }
-            }
-
-        }
-
-        /// <summary>
-        /// Update if tasks are complete
-        /// </summary>
-        public void UpdateTaskCompletion()
-        {
-            tree.ForEach(t => t.UpdateTaskComplete());
-        }
-
-        /// <summary>
-        /// Gets all the tasks the player needs and can currenlty do
-        /// </summary>
-        /// <returns></returns>
-        public List<Task> GetAvaiableTasks()
-        {
-            UpdateAvaibleTasks();
-            return Instance.avaibleTasks;
-        }
-
         public static void InitalizeInstance()
         {
             Instance = new TaskManager();
-            Task t1 = new Task("Plant 15 Parsnip seeds", null, new TaskComplateDelegate(Instance.OutOfFifteenParsnips), new UpdateTaskDisplayNameDelegate(Instance.ParsnipStringInventory), true);
-            Task t2 = new Task("Plant 15 Parsnip seeds", null, new TaskComplateDelegate(Instance.OutOfFifteenParsnips), new UpdateTaskDisplayNameDelegate(Instance.ParsnipStringInventory), false);
-            Instance.tree = new List<Task>(new []{ t1, t2 });
+            
+            Action taskCompleteAction = new Action("Task Complete");
+
+            Decision have15Parsnips = new Decision(taskCompleteAction,
+                                      new Action("Do not have 15 parsnips"),
+                                      new Decision.DecisionDelegate(Instance.PlayerHas15Parsnips));
+
+            Instance.root = have15Parsnips;
         }
 
-
-
-        private bool OutOfFifteenParsnips()
+        private int ParsnipInventoryCount()
         {
-            return Game1.player.Items.CountId("472") <= 0;
+            return Game1.player.Items.CountId("472");
         }
 
-        private string ParsnipStringInventory(Task t)
+        private bool PlayerHas15Parsnips()
         {
-            return $"Plant 15 Parsnip seeds ({(t.permanant ? "permanant" : "not permanent")})";
+            return ParsnipInventoryCount() == 15;
         }
     }
 }
