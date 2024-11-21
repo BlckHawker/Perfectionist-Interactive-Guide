@@ -1,4 +1,5 @@
-﻿using StardewModdingAPI;
+﻿using Microsoft.Xna.Framework.Content;
+using StardewModdingAPI;
 using StardewValley;
 using StardewValley.TerrainFeatures;
 using System;
@@ -26,7 +27,7 @@ namespace Stardew_100_Percent_Mod
 
         public TaskManager()
         {
-
+            
         }
 
         public static void InitalizeInstance()
@@ -38,18 +39,33 @@ namespace Stardew_100_Percent_Mod
             Decision have15Parsnips = new Decision(taskCompleteAction,
                                       new Action("Do not have 15 parsnips"),
                                       new Decision.DecisionDelegate(Instance.PlayerHas15Parsnips));
-
             Instance.root = have15Parsnips;
         }
 
         private int ParsnipInventoryCount()
         {
-            return Game1.player.Items.CountId("472");
+            //the count of the item in the player's iventory + the count currently selceted
+
+            const string id = "472";
+
+            Farmer player = Game1.player;
+
+            Item heldItem = player.CursorSlotItem;
+
+            int count = player.Items.CountId("472");
+
+            if (heldItem?.ItemId == id)
+            {
+                count += heldItem.Stack;
+            }
+            return count;
         }
 
         private bool PlayerHas15Parsnips()
         {
-            return ParsnipInventoryCount() == 15;
+
+
+            return ParsnipInventoryCount() >= 15;
         }
     }
 }

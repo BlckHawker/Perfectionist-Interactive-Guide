@@ -5,10 +5,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework;
 using StardewValley.Internal;
+using StardewValley.Menus;
 
 namespace Stardew_100_Percent_Mod
 {
@@ -45,6 +45,10 @@ namespace Stardew_100_Percent_Mod
             //new way with decision tree
             Menu.SetTasks(new[] { action }.ToList() ) ;
 
+
+            //try and get the item that the player is holding in their hand
+            Log(Game1.player.CursorSlotItem?.ItemId);
+            return;
         }
 
         private void OnRenderedHud(object? sender, RenderedHudEventArgs e) 
