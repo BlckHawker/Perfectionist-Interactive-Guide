@@ -88,14 +88,30 @@ namespace Stardew_100_Percent_Mod
             { ' ', 25 },
             { '(', 25 },
             { ')', 25 },
+            { ':', 25 },
+            { ',', 25 },
+            { '{', 25 },
+            { '}', 25 },
 
 
         };
 
         public static void SetTasks(List<Action> actions)
-        { 
-            Tasks = actions.Select(t => t.DisplayName).ToList();
+        {
+            Tasks = new List<string>();
 
+            foreach (Action action in actions)
+            {
+                if (action.changeDisplayNameMethod != null)
+                {
+                    Tasks.Add(action.changeDisplayNameMethod());
+                }
+
+                else
+                {
+                    Tasks.Add(action.DisplayName);
+                }
+            }
         }
 
         /// <summary>
@@ -119,7 +135,7 @@ namespace Stardew_100_Percent_Mod
 
             //to get the width of the background, get what the width should be for a specifc character and sum the values
             
-            string longestString = Tasks.OrderByDescending(s => s.Length).First();
+            string longestString = Tasks.OrderByDescending(s => s.Length).FirstOrDefault();
 
             //a custom exception just in case the char key doesn't exist
             foreach (string task in Tasks)

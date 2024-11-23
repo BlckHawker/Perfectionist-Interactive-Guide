@@ -13,23 +13,40 @@ namespace Stardew_100_Percent_Mod
 
         private DecisionTreeNode trueNode;
         private DecisionTreeNode falseNode;
+        private bool permanent;
+        private bool complete;
 
         //the method that will decide if we go with the true or false nodex
         public DecisionDelegate checkTask;
 
 
 
-        public Decision(DecisionTreeNode trueNode, DecisionTreeNode falseNode, DecisionDelegate checkTask)
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="trueNode">The the node that will be travers</param>
+        /// <param name="falseNode"></param>
+        /// <param name="checkTask"></param>
+        /// <param name="permanent"></param>
+        public Decision(DecisionTreeNode trueNode, DecisionTreeNode falseNode, DecisionDelegate checkTask, bool permanent = false)
         {
             this.trueNode = trueNode;
             this.falseNode = falseNode;
             this.checkTask = checkTask;
+            this.permanent = permanent;
         }
 
         //Perform the test
         private DecisionTreeNode GetBranch()
         {
-            return checkTask() ? trueNode : falseNode;
+            if ((permanent && complete) || checkTask())
+            {
+                complete = true;
+                return trueNode;
+            }
+
+            return falseNode;
         }
 
         // Recursively walk through the tree
