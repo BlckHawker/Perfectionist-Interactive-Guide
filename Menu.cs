@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Locations;
+using StardewValley.BellsAndWhistles;
 
 namespace Stardew_100_Percent_Mod
 {
@@ -15,86 +16,9 @@ namespace Stardew_100_Percent_Mod
         //the list of tasks that need to be displayed
         public static List<string> Tasks = new List<string>();
 
-
         //offeset so text isn't it very top left corner of the menu
         private const int widthOffset = 12;
         private const int heightOffset = 12;
-
-        //What the width of each charcter should be
-        private static readonly Dictionary<char, int> widthDictionary = new Dictionary<char, int>
-        {
-            { 'A', 25 },
-            { 'B', 30 },
-            { 'C', 30 },
-            { 'D', 30 },
-            { 'E', 30 },
-            { 'F', 25 },
-            { 'G', 40 },
-            { 'H', 30 },
-            { 'I', 10 },
-            { 'J', 20 },
-            { 'K', 25 },
-            { 'L', 25 },
-            { 'M', 35 },
-            { 'N', 30 },
-            { 'O', 35 },
-            { 'P', 30 },
-            { 'Q', 35 },
-            { 'R', 35 },
-            { 'S', 30 },
-            { 'T', 30 },
-            { 'U', 30 },
-            { 'V', 30 },
-            { 'W', 40 },
-            { 'X', 30 },
-            { 'Y', 30 },
-            { 'Z', 30 },
-            { 'a', 25 },
-            { 'b', 25 },
-            { 'c', 25 },
-            { 'd', 25 },
-            { 'e', 25 },
-            { 'f', 20 },
-            { 'g', 25 },
-            { 'h', 25 },
-            { 'i', 10 },
-            { 'j', 20 },
-            { 'k', 20 },
-            { 'l', 15 },
-            { 'm', 35 },
-            { 'n', 25 },
-            { 'o', 25 },
-            { 'p', 25 },
-            { 'q', 25 },
-            { 'r', 25 },
-            { 's', 25 },
-            { 't', 20 },
-            { 'u', 40 },
-            { 'v', 25 },
-            { 'w', 30 },
-            { 'x', 25 },
-            { 'y', 25 },
-            { 'z', 25 },
-            { '0', 25 },
-            { '1', 25 },
-            { '2', 25 },
-            { '3', 25 },
-            { '4', 25 },
-            { '5', 25 },
-            { '6', 25 },
-            { '7', 25 },
-            { '8', 25 },
-            { '9', 25 },
-            { ' ', 25 },
-            { '(', 25 },
-            { ')', 25 },
-            { ':', 25 },
-            { ',', 25 },
-            { '{', 25 },
-            { '}', 25 },
-
-
-        };
 
         public static void SetTasks(List<Action> actions)
         {
@@ -133,28 +57,14 @@ namespace Stardew_100_Percent_Mod
             //the amount of vertical space to move down starting from the top left of the current task
             const int heightDifference = 40;
 
-            //to get the width of the background, get what the width should be for a specifc character and sum the values
-            
             string longestString = Tasks.OrderByDescending(s => s.Length).FirstOrDefault();
 
-            //a custom exception just in case the char key doesn't exist
-            foreach (string task in Tasks)
-            {
-                foreach (char c in longestString)
-                {
-                    if (!widthDictionary.ContainsKey(c))
-                    {
-                        throw new Exception($"The char \"{c}\" does not exist in the dictionary \"widthDictionary\"");
-                    }
-                }
-            }
-
-            float backgroundWidth = longestString.Select(c => widthDictionary[c]).Sum() + widthOffset;
-            
+            //to get the width/height of the background
+            int backgroundWidth = SpriteText.getWidthOfString(longestString);
             float backgroundHeight = heightDifference * Tasks.Count + heightOffset;
 
             //draw the background
-            spriteBatch.Draw(Game1.staminaRect, new Rectangle(menuXPostion, menuYPosition, (int)Math.Ceiling(backgroundWidth), (int)Math.Ceiling(backgroundHeight)), Color.Black * 0.5f);
+            spriteBatch.Draw(Game1.staminaRect, new Rectangle(menuXPostion, menuYPosition, backgroundWidth, (int)Math.Ceiling(backgroundHeight)), Color.Black * 0.5f);
 
             //draw the text
             Vector2 startingPosition = new Vector2(widthOffset + menuXPostion, heightOffset + menuYPosition);
