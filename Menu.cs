@@ -107,7 +107,7 @@ namespace Stardew_100_Percent_Mod
                     Tasks.Add(action.changeDisplayNameMethod());
                 }
 
-                else
+                else if(action.DisplayName != "")
                 {
                     Tasks.Add(action.DisplayName);
                 }

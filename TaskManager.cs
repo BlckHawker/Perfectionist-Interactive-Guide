@@ -34,6 +34,8 @@ namespace Stardew_100_Percent_Mod
         public delegate void LogMethod(string message, LogLevel logLevel = LogLevel.Debug);
         public LogMethod logMethod;
 
+        private Action completeAction;
+
 
 
         public TaskManager()
@@ -46,6 +48,8 @@ namespace Stardew_100_Percent_Mod
             Instance = new TaskManager();
 
             Instance.logMethod = logMethod;
+
+            Instance.completeAction = new Action("");
 
             DecisionTreeNode parsnipSeedsTree = GetParsnipSeedsTree(15);
 
@@ -130,8 +134,6 @@ namespace Stardew_100_Percent_Mod
             }
             #endregion
 
-            
-
             #endregion
 
             //there is at least one loction where the player has parsnip seeds to in the farm
@@ -148,7 +150,7 @@ namespace Stardew_100_Percent_Mod
 
             //the player has 15 parsnips seeds on them
             Decision playerHas15ParsnipInInventory = new Decision(
-                new Action("Task Complete"),
+                Instance.completeAction,
                 playerHasParsnipSeedsOnFarmHouse,
                 new Decision.DecisionDelegate(PlayerHasDesieredAmountOfParsnipSeeds));
 
