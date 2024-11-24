@@ -12,7 +12,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using xTile.Dimensions;
-using static Stardew_100_Percent_Mod.TaskManager;
+using static Stardew_100_Percent_Mod.NPCManager;
 
 namespace Stardew_100_Percent_Mod
 {
@@ -136,6 +136,7 @@ namespace Stardew_100_Percent_Mod
 
             #endregion
 
+            #region Tree
             //there is at least one loction where the player has parsnip seeds to in the farm
             Decision playerHasParsnipSeedsOnFarm = new Decision(
                 new Action(GetParsnipSeedCountFromFarm),
@@ -155,6 +156,7 @@ namespace Stardew_100_Percent_Mod
                 new Decision.DecisionDelegate(PlayerHasDesieredAmountOfParsnipSeeds));
 
             return playerHas15ParsnipInInventory;
+            #endregion
         }
 
         /// <summary>
@@ -162,24 +164,46 @@ namespace Stardew_100_Percent_Mod
         /// </summary>
         /// <returns></returns>
         private static DecisionTreeNode BecomeFriendsWithSebastian()
-        { 
+        {
+            string npcName = "Sebastian";
+            int fullHeartAmount = 250;
+            #region Delegate Actions
+
+            #endregion
+
+            #region Delegate Checks
+
             bool PlayerKnowsSebastian()
             {
-                return Game1.player.friendshipData.ContainsKey("Sebastian");
+                return Game1.player.friendshipData.ContainsKey(npcName);
             }
+
+            bool PlayerBestFriendsWithSebastion()
+            {
+                var data = Game1.player.friendshipData[npcName];
+
+                Game1.player.friendshipData.TryGetValue(npcName, out Friendship? friendship);
+
+                return friendship.Points >= 250 * (IsDatable(npcName) ? 8 : 10);
+            }
+
+            #endregion
+
+            //max friendship
+            DecisionTreeNode maxFriendship = new Decision(
+                Instance.completeAction,
+                new Action($"Do not have max friendship with {npcName}"),
+                new Decision.DecisionDelegate(PlayerBestFriendsWithSebastion), true);
 
             //player knows sebastian
             DecisionTreeNode knowSebastian = new Decision(
-                new Action("Player knows Sebastian"),
-                new Action("Meet Sebastian"),
-                new Decision.DecisionDelegate(PlayerKnowsSebastian));
+                maxFriendship,
+                new Action($"Meet {npcName}"),
+                new Decision.DecisionDelegate(PlayerKnowsSebastian), true);
                 
             return knowSebastian;
         }
 
-        private static DecisionTreeNode GetSebastianRelationshipTree()
-        {
-            return new Action("");
-        }
+        
     }
 }

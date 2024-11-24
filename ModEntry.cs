@@ -44,22 +44,8 @@ namespace Stardew_100_Percent_Mod
                 return;
 
             //Go through the decsion tree and check what the desired action is
-
             List<Action> actions = TaskManager.Instance.roots.Select(root => (Action)root.MakeDecision() ).ToList();
 
-            //get character relationship
-            string npcNames = string.Join(", ", NPCManager.GetSocialCharacters().Select(npc => npc.Name));
-
-
-
-            NPC sebastian = NPCManager.GetSocialCharacters().Where(n => n.Name == "Sebastian").FirstOrDefault();
-
-            var data = Game1.player.friendshipData;
-
-            //Friendship friendship = Game1.player.friendshipData[sebastian.Name];
-
-            //Evelyn, George, Alex, Emily, Haley, Jodi, Sam, Vincent, Clint, Lewis, Abigail, Caroline, Pierre, Gus,
-            //Pam, Penny, Harvey, Elliott, Demetrius, Maru, Robin, Sebastian, Linus, Wizard, Jas, Marnie, Shane, Leah, Dwarf, Krobus, Willy
             if (true)
             { 
                 Menu.SetTasks(actions);
