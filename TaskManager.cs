@@ -214,14 +214,26 @@ namespace Stardew_100_Percent_Mod
                 return (friendship.GiftsThisWeek < 2 || npc.isBirthday()) && friendship.GiftsToday == 0;
             }
 
+            bool CanTalk()
+            {
+                return !Game1.player.hasPlayerTalkedToNPC(npc.Name);
+            }
+
             #endregion
 
             #region Tree
+            //the player can talk to npc today
+            DecisionTreeNode canTalk = new Decision(
+                new Action($"Talk to {npcName}"),
+                Instance.completeAction,
+                new Decision.DecisionDelegate(CanTalk));
+
+
 
             //The player can give npc a gift today and they haven't given him a gift yet
             DecisionTreeNode canGiveGift = new Decision(
                 new Action($"Give {npcName} a gift"),
-                new Action($"Can't give {npcName} a gift today"),
+                canTalk,
                 new Decision.DecisionDelegate(CanGiveNPCGift));
 
             //max friendship

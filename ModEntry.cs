@@ -62,13 +62,15 @@ namespace Stardew_100_Percent_Mod
             string npcName = "Jas";
             NPC npc = GetNPC(npcName);
             Friendship friendship = GetFriendshipData(npcName);
-
             friendship = GetFriendshipData(npcName);
-
             actions = TaskManager.Instance.CombineItemActions(actions);
             Menu.SetTasks(actions);
 
             
+            
+
+
+
 
         }
 
