@@ -13,6 +13,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using xTile;
 using xTile.Dimensions;
 using static Stardew_100_Percent_Mod.NPCManager;
 
@@ -69,7 +70,8 @@ namespace Stardew_100_Percent_Mod
 
             DecisionTreeNode becomeFriendsWithSebastian = BecomeFriendsWithNPC("Sebastian");
 
-            Instance.roots = new List<DecisionTreeNode>(new[] { parsnipSeedsTree, parsnipSeedsTree2, becomeFriendsWithSebastian });
+            //Instance.roots = new List<DecisionTreeNode>(new[] { parsnipSeedsTree, parsnipSeedsTree2, becomeFriendsWithSebastian });
+            Instance.roots = new List<DecisionTreeNode>(new[] { parsnipSeedsTree, becomeFriendsWithSebastian });
         }
 
         /// <summary>
@@ -90,7 +92,7 @@ namespace Stardew_100_Percent_Mod
             {
                 int playerInventoryCount = ItemLocator.PlayerItemCount(itemId);
 
-                return $"Buy {playerInventoryCount - Instance.requiredItemsDictionary[itemId]} {item.Name}(s) from store";
+                return $"Buy {Instance.requiredItemsDictionary[itemId] - playerInventoryCount} {item.Name}(s) from store";
             }
 
             //Return the amount of items he player should get from that location
@@ -106,7 +108,8 @@ namespace Stardew_100_Percent_Mod
 
                 int desiredCount = Math.Min(locationItemCount, Instance.requiredItemsDictionary[itemId] - playerInventoryCount);
 
-                return $"Get {desiredCount} {item.Name}(s) from chest in {uniqueLocationName} at {chest.TileLocation}";
+                //did i just change this?
+                return $"Get {desiredCount} {item.Name} from chest in {uniqueLocationName} at {chest.TileLocation}";
             }
 
             //Check how many {item} are in the FarmHouse and tells the plyaer to get them
@@ -310,10 +313,14 @@ namespace Stardew_100_Percent_Mod
 
         public void UpdateReservedItemDicionary(string itemId, int count)
         {
-            if (requiredItemsDictionary.ContainsKey(itemId))
-            { 
-                requiredItemsDictionary[itemId] += count;
+            if (inventoryItemReserveDictonary.ContainsKey(itemId))
+            {
+                inventoryItemReserveDictonary[itemId] += count;
+
+                //clamp to zero
+                inventoryItemReserveDictonary[itemId] = Math.Clamp(inventoryItemReserveDictonary[itemId], 0, int.MaxValue);
             }
+            
         }
 
         public void ResetItemDictionarys()
