@@ -13,7 +13,6 @@
 
   <ItemGroup>
     <Folder Include="assets\" />
-    <Folder Include="Decision Trees\" />
   </ItemGroup>
 
 </Project>

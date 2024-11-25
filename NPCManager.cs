@@ -61,5 +61,11 @@ namespace Stardew_100_Percent_Mod
             return new[] { "Alex", "Elliott", "Harvey", "Sam","Sebastian","Shane",
                 "Abigail", "Emily", "Haley", "Leah", "Maru", "Penny" }.Contains(name);
         }
+
+        public static Friendship GetFriendshipData(string name)
+        { 
+            Game1.player.friendshipData.TryGetValue(name, out Friendship? friendship);
+            return friendship;
+        }
     }
 }

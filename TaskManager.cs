@@ -1,6 +1,8 @@
 ﻿using Microsoft.Xna.Framework.Content;
+using Stardew_100_Percent_Mod.Decision_Trees;
 using StardewModdingAPI;
 using StardewValley;
+using StardewValley.ItemTypeDefinitions;
 using StardewValley.Locations;
 using StardewValley.Network;
 using StardewValley.Objects;
@@ -36,8 +38,8 @@ namespace Stardew_100_Percent_Mod
 
         private Action completeAction;
 
-
-
+        Dictionary<string, int> itemDictonary;
+        
         public TaskManager()
         {
 
@@ -49,88 +51,95 @@ namespace Stardew_100_Percent_Mod
 
             Instance.logMethod = logMethod;
 
+            Instance.itemDictonary = new Dictionary<string, int>();
+
             Instance.completeAction = new Action("");
 
-            DecisionTreeNode parsnipSeedsTree = GetParsnipSeedsTree(15);
+            string parsnipId = "472";
 
-            DecisionTreeNode becomeFriendsWithSebastian = BecomeFriendsWithSebastian();
+            DecisionTreeNode parsnipSeedsTree = GetProducableItemTree(parsnipId, 15);
 
-            Instance.roots = new List<DecisionTreeNode>(new[]{ parsnipSeedsTree, becomeFriendsWithSebastian });
+            DecisionTreeNode parsnipSeedsTree2 = GetProducableItemTree(parsnipId, 15);
+
+            DecisionTreeNode becomeFriendsWithSebastian = BecomeFriendsWithNPC("Sebastian");
+
+            Instance.roots = new List<DecisionTreeNode>(new[] { parsnipSeedsTree, parsnipSeedsTree2, becomeFriendsWithSebastian });
         }
 
         /// <summary>
         /// Helper method that will get all of the nodes that will check if the player
-        /// has parsnip seeds throughout the entire world
+        /// has the desired item throughout the entire world
         /// </summary>
         /// <returns>The root node of the tree that will check for parsnips</returns>
-        private static DecisionTreeNode GetParsnipSeedsTree(int desiredAmount)
-        {
-            string parsnipSeedsItemId = "472";
+        private static DecisionTreeNode GetProducableItemTree(string itemId, int desiredAmount)
+        { 
+            Item item = ItemLocator.GetItem(itemId);
 
             #region Delegate Methods
 
             #region Delegate Actions
 
-            string GetParsnipFromStore()
+            string GetItemFromStore()
             {
-                int playerInventoryCount = ItemLocator.PlayerItemCount(parsnipSeedsItemId);
+                int playerInventoryCount = ItemLocator.PlayerItemCount(itemId);
 
-                return $"Buy {desiredAmount - playerInventoryCount} parsnip seed(s) from store";
+                return $"Buy {Instance.itemDictonary[itemId] - playerInventoryCount} {item.Name}(s) from store";
             }
 
-            //Return the amount of seeds needed to get from that location
-            string GetParsnipSeedCountFromLocation(string uniqueLocationName)
+            //Return the amount of items he player should get from that location
+            string GetItemCountFromLocation(string uniqueLocationName)
             {
                 GameLocation location = Game1.locations.First(l => l.NameOrUniqueName == uniqueLocationName);
 
-                Chest chest = ItemLocator.GetChestsWithItem(location, parsnipSeedsItemId).First();
+                Chest chest = ItemLocator.GetChestsWithItem(location, itemId).First();
 
-                int locationItemCount = ItemLocator.GetChestItemCount(chest, parsnipSeedsItemId);
+                int locationItemCount = ItemLocator.GetChestItemCount(chest, itemId);
 
-                int playerInventoryCount = ItemLocator.PlayerItemCount(parsnipSeedsItemId);
+                int playerInventoryCount = ItemLocator.PlayerItemCount(itemId);
 
-                int desiredCount = Math.Min(locationItemCount, desiredAmount - playerInventoryCount);
+                int desiredCount = Math.Min(locationItemCount, Instance.itemDictonary[itemId] - playerInventoryCount);
 
-                return $"Get {desiredCount} parsnip seed(s) from chest in {uniqueLocationName} at {chest.TileLocation}";
+                return $"Get {desiredCount} {item.Name}(s) from chest in {uniqueLocationName} at {chest.TileLocation}";
             }
 
-            //Check how many parsnip seeds are in the FarmHouse and tells the plyaer to get them
+            //Check how many {item} are in the FarmHouse and tells the plyaer to get them
             string GetParsnipSeedCountFromFarmHouse()
             {
-                //get the amount of parsnips found in farmhouse
-                return GetParsnipSeedCountFromLocation("FarmHouse");
+                return GetItemCountFromLocation("FarmHouse");
             }
 
-            //Check how many parsnip seeds are in the Farm and tells the plyaer to get them
+            //Check how many {item} are in the Farm and tells the plyaer to get them
             string GetParsnipSeedCountFromFarm()
             {
-                //get the amount of parsnips found in farm
-                return GetParsnipSeedCountFromLocation("Farm");
+                return GetItemCountFromLocation("Farm");
             }
             #endregion
 
             #region Delegate Checks
 
-            bool LocationHasParsnipSeeds(string uniqueLocationName)
+            //A certain location has the desired item
+            bool LocationHasItem(string uniqueLocationName)
             {
                 GameLocation location = Game1.locations.First(l => l.NameOrUniqueName == uniqueLocationName);
-                return ItemLocator.LocationHasItem(location, parsnipSeedsItemId);
+                return ItemLocator.LocationHasItem(location, itemId);
             }
 
+            //The farm has the desired item
             bool FarmHasParsnipSeeds()
-            { 
-                return LocationHasParsnipSeeds("Farm");
+            {
+                return LocationHasItem("Farm");
             }
 
-            //returns true if the player has at least 1 parsnip in their house
+            //The farm house has the desired item
             bool FarmHouseHasParsnipSeeds()
             {
-                return LocationHasParsnipSeeds("FarmHouse");
+                return LocationHasItem("FarmHouse");
             }
 
-            bool PlayerHasDesieredAmountOfParsnipSeeds()
+            //The player has the desired amount of {item}
+            bool PlayerHasDesieredAmountOfItem()
             {
-                return ItemLocator.PlayerHasItem(parsnipSeedsItemId, desiredAmount, true);
+                return ItemLocator.PlayerHasItem(itemId, desiredAmount, true);
             }
             #endregion
 
@@ -138,24 +147,24 @@ namespace Stardew_100_Percent_Mod
 
             #region Tree
             //there is at least one loction where the player has parsnip seeds to in the farm
-            Decision playerHasParsnipSeedsOnFarm = new Decision(
-                new Action(GetParsnipSeedCountFromFarm),
-                new Action(GetParsnipFromStore),
+            Decision playerHasItemOnFarm = new Decision(
+                new GetItemAction(itemId, GetParsnipSeedCountFromFarm),
+                new GetItemAction(itemId, GetItemFromStore),
                 new Decision.DecisionDelegate(FarmHasParsnipSeeds));
 
             //there is at least one loction where the player has parsnip seeds to in the farm house
-            Decision playerHasParsnipSeedsOnFarmHouse = new Decision(
-                new Action(GetParsnipSeedCountFromFarmHouse),
-                playerHasParsnipSeedsOnFarm,
+            Decision playerHasItemOnFarmHouse = new Decision(
+                new GetItemAction(itemId, GetParsnipSeedCountFromFarmHouse),
+                playerHasItemOnFarm,
                 new Decision.DecisionDelegate(FarmHouseHasParsnipSeeds));
 
-            //the player has 15 parsnips seeds on them
-            Decision playerHas15ParsnipInInventory = new Decision(
+            //the player has {desiredAmount} {item} on them
+            Decision playerHasItemInInventory = new Decision(
                 Instance.completeAction,
-                playerHasParsnipSeedsOnFarmHouse,
-                new Decision.DecisionDelegate(PlayerHasDesieredAmountOfParsnipSeeds));
+                playerHasItemOnFarmHouse,
+                new Decision.DecisionDelegate(PlayerHasDesieredAmountOfItem));
 
-            return playerHas15ParsnipInInventory;
+            return new Root(playerHasItemInInventory, itemId, desiredAmount);
             #endregion
         }
 
@@ -163,10 +172,9 @@ namespace Stardew_100_Percent_Mod
         /// Get the branch to become friends with Sebestian
         /// </summary>
         /// <returns></returns>
-        private static DecisionTreeNode BecomeFriendsWithSebastian()
+        private static DecisionTreeNode BecomeFriendsWithNPC(string npcName)
         {
-            string npcName = "Sebastian";
-            int fullHeartAmount = 250;
+            const int fullHeartAmount = 250;
             #region Delegate Actions
 
             #endregion
@@ -180,11 +188,19 @@ namespace Stardew_100_Percent_Mod
 
             bool PlayerBestFriendsWithSebastion()
             {
-                var data = Game1.player.friendshipData[npcName];
+                Friendship friendship = GetFriendshipData(npcName);
+                return friendship.Points >= fullHeartAmount * (IsDatable(npcName) ? 8 : 10);
+            }
 
-                Game1.player.friendshipData.TryGetValue(npcName, out Friendship? friendship);
-
-                return friendship.Points >= 250 * (IsDatable(npcName) ? 8 : 10);
+            bool CanGiveNPCGift()
+            {
+                Friendship friendship = GetFriendshipData(npcName);
+                
+                NPC npc = GetNPC(npcName);
+                
+                return friendship.GiftsThisWeek > 2 
+                    && friendship.GiftsToday == 0
+                    && npc.CanReceiveGifts();
             }
 
             #endregion
@@ -204,6 +220,86 @@ namespace Stardew_100_Percent_Mod
             return knowSebastian;
         }
 
-        
+        /// <summary>
+        /// Combine Actions that tell the player to get the same item, but different amounts
+        /// </summary>
+        /// <param name="actions">The actions</param>
+        public List<Action> CombineItemActions(List<Action> actions)
+        { 
+            List<string> itemIds = new List<string>();
+
+            //get all the ids of the GetItem actions
+            foreach(Action action in actions)
+            {
+                if (action is GetItemAction)
+                {
+                    string itemId = ((GetItemAction)action).ItemId;
+
+                    if (!itemIds.Contains(itemId))
+                    {
+                        itemIds.Add(itemId);
+                    }
+                }
+            }
+
+            //combine all of the GetItemActions
+            foreach (string id in itemIds)
+            {
+                actions = CombineItemAction(id, actions);
+            }
+
+            return actions;
+        }
+
+        /// <summary>
+        /// Combines Actions that have a specifc item
+        /// </summary>
+        /// <param name="itemId">the id of the desired item</param>
+        /// <param name="actions">the original list of actions</param>
+        /// <returns>a new list of actions with combined action that say to get the same item</returns>
+        private List<Action> CombineItemAction(string itemId, List<Action> actions)
+        {
+            List<Action> newList = new List<Action>();
+            bool foundItemAction = false;
+            for (int i = 0; i < actions.Count; i++)
+            {
+                Action action = actions[i];
+                if (action is GetItemAction)
+                {
+                    GetItemAction getItemAction = (GetItemAction)action;
+
+                    if (getItemAction.ItemId == itemId && !foundItemAction)
+                    {
+                        foundItemAction = true;
+                        newList.Add(getItemAction);
+                    }
+                }
+
+                else
+                {
+                    newList.Add(action);
+                }
+            }
+
+            return newList;
+        }
+
+        public void UpdateItemDictonary(string itemId, int count)
+        {
+            if (!itemDictonary.ContainsKey(itemId))
+            {
+                itemDictonary[itemId] = count;
+            }
+
+            else
+            { 
+                itemDictonary[itemId] += count;
+            }
+        }
+
+        public void ClearItemDictionary()
+        { 
+            itemDictonary.Clear();
+        }
     }
 }

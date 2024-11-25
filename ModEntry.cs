@@ -26,10 +26,17 @@ namespace Stardew_100_Percent_Mod
         public override void Entry(IModHelper helper)
         {
             helper.Events.GameLoop.UpdateTicking += OnUpdateTicked;
-            helper.Events.Display.RenderedHud += this.OnRenderedHud;
+            helper.Events.GameLoop.SaveLoaded += SaveLoaded;
+            helper.Events.Display.RenderedHud += OnRenderedHud;
+
 
             Menu.SetMonitor(this.Monitor);
 
+            
+        }
+
+        private void SaveLoaded(object? sender, SaveLoadedEventArgs e)
+        {
             //initialize task manager
             TaskManager.InitalizeInstance(Log);
         }
@@ -43,13 +50,20 @@ namespace Stardew_100_Percent_Mod
             if (!Context.IsWorldReady)
                 return;
 
+            
+            TaskManager.Instance.ClearItemDictionary();
+
             //Go through the decsion tree and check what the desired action is
             List<Action> actions = TaskManager.Instance.roots.Select(root => (Action)root.MakeDecision() ).ToList();
+
+            actions = TaskManager.Instance.CombineItemActions(actions);
 
             if (true)
             { 
                 Menu.SetTasks(actions);
             }
+
+            
 
         }
 

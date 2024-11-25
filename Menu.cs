@@ -22,20 +22,7 @@ namespace Stardew_100_Percent_Mod
 
         public static void SetTasks(List<Action> actions)
         {
-            Tasks = new List<string>();
-
-            foreach (Action action in actions)
-            {
-                if (action.changeDisplayNameMethod != null)
-                {
-                    Tasks.Add(action.changeDisplayNameMethod());
-                }
-
-                else if(action.DisplayName != "")
-                {
-                    Tasks.Add(action.DisplayName);
-                }
-            }
+            Tasks = actions.Select(a => a.DisplayName).Where(str => str != "").ToList();
         }
 
         /// <summary>
