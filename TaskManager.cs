@@ -68,7 +68,10 @@ namespace Stardew_100_Percent_Mod
 
             DecisionTreeNode becomeFriendsWithSebastian = BecomeFriendsWithNPC("Sebastian");
 
-            Instance.roots = new List<DecisionTreeNode>(new[] { parsnipSeedsTree, becomeFriendsWithSebastian });
+            DecisionTreeNode becomeFriendsWithJas = BecomeFriendsWithNPC("Jas");
+
+
+            Instance.roots = new List<DecisionTreeNode>(new[] { parsnipSeedsTree, becomeFriendsWithJas });
         }
 
         /// <summary>
@@ -186,49 +189,55 @@ namespace Stardew_100_Percent_Mod
         private static DecisionTreeNode BecomeFriendsWithNPC(string npcName)
         {
             const int fullHeartAmount = 250;
+            NPC npc = GetNPC(npcName);
+            Friendship friendship = GetFriendshipData(npcName);
+
             #region Delegate Actions
 
             #endregion
 
             #region Delegate Checks
 
-            bool PlayerKnowsSebastian()
+            bool PlayerKnowsNPC()
             {
                 return Game1.player.friendshipData.ContainsKey(npcName);
             }
 
-            bool PlayerBestFriendsWithSebastion()
+            bool PlayerBestFriendsWithNPC()
             {
-                Friendship friendship = GetFriendshipData(npcName);
+                friendship = GetFriendshipData(npcName);
                 return friendship.Points >= fullHeartAmount * (IsDatable(npcName) ? 8 : 10);
             }
 
             bool CanGiveNPCGift()
             {
-                Friendship friendship = GetFriendshipData(npcName);
-                
-                NPC npc = GetNPC(npcName);
-                
-                return friendship.GiftsThisWeek > 2 
-                    && friendship.GiftsToday == 0
-                    && npc.CanReceiveGifts();
+                return (friendship.GiftsThisWeek < 2 || npc.isBirthday()) && friendship.GiftsToday == 0;
             }
 
             #endregion
 
+            #region Tree
+
+            //The player can give npc a gift today and they haven't given him a gift yet
+            DecisionTreeNode canGiveGift = new Decision(
+                new Action($"Give {npcName} a gift"),
+                new Action($"Can't give {npcName} a gift today"),
+                new Decision.DecisionDelegate(CanGiveNPCGift));
+
             //max friendship
             DecisionTreeNode maxFriendship = new Decision(
                 Instance.completeAction,
-                new Action($"Do not have max friendship with {npcName}"),
-                new Decision.DecisionDelegate(PlayerBestFriendsWithSebastion), true);
+                canGiveGift,
+                new Decision.DecisionDelegate(PlayerBestFriendsWithNPC), true);
 
-            //player knows sebastian
+            //player knows npc
             DecisionTreeNode knowSebastian = new Decision(
                 maxFriendship,
                 new Action($"Meet {npcName}"),
-                new Decision.DecisionDelegate(PlayerKnowsSebastian), true);
+                new Decision.DecisionDelegate(PlayerKnowsNPC), true);
                 
             return knowSebastian;
+            #endregion
         }
 
         /// <summary>

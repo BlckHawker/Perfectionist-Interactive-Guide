@@ -12,6 +12,8 @@ using StardewValley.Menus;
 using Netcode;
 using StardewValley.Network;
 using StardewValley.Objects;
+using StardewValley.GameData.Characters;
+using static Stardew_100_Percent_Mod.NPCManager;
 
 namespace Stardew_100_Percent_Mod
 {
@@ -53,15 +55,18 @@ namespace Stardew_100_Percent_Mod
             
             TaskManager.Instance.ResetItemDictionarys();
 
+
             //Go through the decsion tree and check what the desired action is
             List<Action> actions = TaskManager.Instance.roots.Select(root => (Action)root.MakeDecision() ).ToList();
 
-            actions = TaskManager.Instance.CombineItemActions(actions);
+            string npcName = "Jas";
+            NPC npc = GetNPC(npcName);
+            Friendship friendship = GetFriendshipData(npcName);
 
-            if (true)
-            { 
-                Menu.SetTasks(actions);
-            }
+            friendship = GetFriendshipData(npcName);
+
+            actions = TaskManager.Instance.CombineItemActions(actions);
+            Menu.SetTasks(actions);
 
             
 
