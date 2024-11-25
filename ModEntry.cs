@@ -51,7 +51,7 @@ namespace Stardew_100_Percent_Mod
                 return;
 
             
-            TaskManager.Instance.ClearItemDictionary();
+            TaskManager.Instance.ResetItemDictionarys();
 
             //Go through the decsion tree and check what the desired action is
             List<Action> actions = TaskManager.Instance.roots.Select(root => (Action)root.MakeDecision() ).ToList();

@@ -22,7 +22,7 @@ namespace Stardew_100_Percent_Mod.Decision_Trees
 
         public override DecisionTreeNode MakeDecision()
         {
-            TaskManager.Instance.UpdateItemDictonary(itemId, desiredCount);
+            TaskManager.Instance.UpdateRequiredItemsDictionary(itemId, desiredCount);
             return nextNode.MakeDecision();
         }
     }

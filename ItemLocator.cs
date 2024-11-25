@@ -163,5 +163,6 @@ namespace Stardew_100_Percent_Mod
         {
             return chest.Items.Where(item => item.ItemId == id).Sum(item => item.Stack);
         }
+
     }
 }

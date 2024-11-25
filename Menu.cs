@@ -47,8 +47,8 @@ namespace Stardew_100_Percent_Mod
             string longestString = Tasks.OrderByDescending(s => s.Length).FirstOrDefault();
 
             //get the width/height of the background
-            int backgroundWidth = SpriteText.getWidthOfString(longestString);
-            int backgroundHeight = Tasks.Select(t => SpriteText.getHeightOfString(t)).Sum();
+            int backgroundWidth = SpriteText.getWidthOfString(longestString) + widthOffset;
+            int backgroundHeight = Tasks.Select(t => SpriteText.getHeightOfString(t)).Sum() + heightOffset;
 
             //draw the background
             spriteBatch.Draw(Game1.staminaRect, new Rectangle(menuXPostion, menuYPosition, backgroundWidth, backgroundHeight), Color.Black * 0.5f);
