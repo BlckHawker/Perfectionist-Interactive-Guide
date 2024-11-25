@@ -66,11 +66,8 @@ namespace Stardew_100_Percent_Mod
 
             DecisionTreeNode parsnipSeedsTree = GetProducableItemTree(parsnipId, 15);
 
-            DecisionTreeNode parsnipSeedsTree2 = GetProducableItemTree(parsnipId, 15);
-
             DecisionTreeNode becomeFriendsWithSebastian = BecomeFriendsWithNPC("Sebastian");
 
-            //Instance.roots = new List<DecisionTreeNode>(new[] { parsnipSeedsTree, parsnipSeedsTree2, becomeFriendsWithSebastian });
             Instance.roots = new List<DecisionTreeNode>(new[] { parsnipSeedsTree, becomeFriendsWithSebastian });
         }
 
