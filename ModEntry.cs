@@ -55,23 +55,25 @@ namespace Stardew_100_Percent_Mod
             
             TaskManager.Instance.ResetItemDictionarys();
 
-
+            Item item = ItemLocator.GetItemName("Wood");
             //Go through the decsion tree and check what the desired action is
             List<Action> actions = TaskManager.Instance.roots.Select(root => (Action)root.MakeDecision() ).ToList();
-
-            string npcName = "Jas";
-            NPC npc = GetNPC(npcName);
-            Friendship friendship = GetFriendshipData(npcName);
-            friendship = GetFriendshipData(npcName);
             actions = TaskManager.Instance.CombineItemActions(actions);
+
             Menu.SetTasks(actions);
 
-            
-            
+            /*
+            //check check crafting
+            string craftName = "Chest";
+            //does the player know the chest recipipe
+            actions.Add(new Action($"Player knows {craftName} recipe: {Game1.player.knowsRecipe(chestRecipieObj.name)}"));
 
+            //Has the player crafted the chest at least once
+            actions.Add(new Action($"Player has crafted a {craftName} at least once: {chestRecipieObj.timesCrafted > 0}"));
 
-
-
+            //Does player have the items to create the item in their inventory
+            actions.Add(new Action($"Player has the items to create the {craftName} in their inventory: {chestRecipieObj.doesFarmerHaveIngredientsInInventory()}"));
+            */
         }
 
         private void OnRenderedHud(object? sender, RenderedHudEventArgs e) 

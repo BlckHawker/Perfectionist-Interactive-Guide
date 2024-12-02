@@ -49,6 +49,26 @@ namespace Stardew_100_Percent_Mod
         }
 
         /// <summary>
+        /// Get a referrence from an item
+        /// </summary>
+        /// <param name="name">The name of the desired item</param>
+        /// <returns>The item object with the desired name</returns>
+        public static Item GetItemName(string name)
+        {
+            Item desiredItem = null;
+            Utility.ForEachItem(delegate (Item item)
+            {
+                if (item.DisplayName == name)
+                {
+                    desiredItem = item;
+                }
+                return desiredItem == null;
+            });
+
+            return desiredItem;
+        }
+
+        /// <summary>
         /// Gets the count of a certain item being found in a certain location
         /// </summary>
         /// <param name="location">the place the item will be searched for</param>

@@ -1,20 +1,7 @@
-﻿using Microsoft.Xna.Framework.Content;
-using Stardew_100_Percent_Mod.Decision_Trees;
+﻿using Stardew_100_Percent_Mod.Decision_Trees;
 using StardewModdingAPI;
 using StardewValley;
-using StardewValley.ItemTypeDefinitions;
-using StardewValley.Locations;
-using StardewValley.Network;
 using StardewValley.Objects;
-using StardewValley.TerrainFeatures;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-using xTile;
-using xTile.Dimensions;
 using static Stardew_100_Percent_Mod.NPCManager;
 
 namespace Stardew_100_Percent_Mod
@@ -31,6 +18,9 @@ namespace Stardew_100_Percent_Mod
 
         public List<Task> avaibleTasks;
 
+        //keep try of items that don't exist in the world
+        private List<DummyItem> dummyItems;
+
         public delegate bool TaskComplateDelegate();
         public delegate string UpdateTaskDisplayNameDelegate(Task t);
 
@@ -42,11 +32,9 @@ namespace Stardew_100_Percent_Mod
         Dictionary<string, int> requiredItemsDictionary;
 
         //keeps track of what items the player has in their inventory. Mainly used to reserve items for quests
-        Dictionary<string, int> inventoryItemReserveDictonary;
-
-        //the amount of items we currently have (reserving them for quests)
-        Dictionary<string, int> reservedInventory;
-        
+        //key is the item id
+        //value is the amount of that item that is free to use
+        public Dictionary<string, int> inventoryItemReserveDictonary { get; private set; }
         public TaskManager()
         {
 
@@ -62,7 +50,14 @@ namespace Stardew_100_Percent_Mod
 
             Instance.completeAction = new Action("");
 
+            Instance.dummyItems = new List<DummyItem>()
+            { new DummyItem("388", "Wood") };
+
             string parsnipId = "472";
+            string woodId = "388";
+
+
+            DecisionTreeNode woodsTree = GetProducableItemTree(woodId, 50);
 
             DecisionTreeNode parsnipSeedsTree = GetProducableItemTree(parsnipId, 15);
 
@@ -70,8 +65,10 @@ namespace Stardew_100_Percent_Mod
 
             DecisionTreeNode becomeFriendsWithJas = BecomeFriendsWithNPC("Jas");
 
+            DecisionTreeNode craftChest = CraftItem("Chest");
 
-            Instance.roots = new List<DecisionTreeNode>(new[] { parsnipSeedsTree, becomeFriendsWithJas });
+
+            Instance.roots = new List<DecisionTreeNode>(new[] { woodsTree, craftChest, parsnipSeedsTree, becomeFriendsWithJas });
         }
 
         /// <summary>
@@ -83,6 +80,9 @@ namespace Stardew_100_Percent_Mod
         { 
 
             Item item = ItemLocator.GetItem(itemId);
+            DummyItem dummyItem = Instance.dummyItems.FirstOrDefault(i => i.itemId == itemId);
+
+
 
             #region Delegate Methods
 
@@ -92,7 +92,12 @@ namespace Stardew_100_Percent_Mod
             {
                 int playerInventoryCount = ItemLocator.PlayerItemCount(itemId);
 
-                return $"Buy {Instance.requiredItemsDictionary[itemId] - playerInventoryCount} {item.Name}(s) from store";
+                if (item != null)
+                {
+                    return $"Buy {Instance.requiredItemsDictionary[itemId] - playerInventoryCount} {item.Name}(s) from store";
+                }
+
+                return $"Buy {Instance.requiredItemsDictionary[itemId] - playerInventoryCount} {dummyItem.DisplayName}(s) from store";
             }
 
             //Return the amount of items he player should get from that location
@@ -253,6 +258,72 @@ namespace Stardew_100_Percent_Mod
         }
 
         /// <summary>
+        /// Get the branch to craft an item
+        /// </summary>
+        /// <param name="name">the name of the item that the player would like to craft</param>
+        /// <returns></returns>
+        public static DecisionTreeNode CraftItem(string name)
+        {
+            ///when the actions is reached, remove items from inventory reserve
+            CraftingRecipe recipe = new CraftingRecipe(name);
+            #region Delegate Actions
+
+            #endregion
+            #region Delegate Checks
+            bool PlayerKnowsRecipe()
+            {
+                return Game1.player.knowsRecipe(name);
+            }
+
+            bool PlayerHasCraftedRecipie()
+            {
+                return new CraftingRecipe(name).timesCrafted > 0;
+            }
+
+            bool PlayerHasRequiredItems()
+            {
+                foreach (KeyValuePair<string, int> kv in recipe.recipeList)
+                {
+                    Instance.inventoryItemReserveDictonary.TryGetValue(kv.Key, out int inventoryCount);
+                    if(inventoryCount < kv.Value)
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            #endregion
+
+            #region Tree
+
+            //Does player have the required items to create the item in their inventory
+            DecisionTreeNode hasItems = new Decision(
+                new CraftItemAction(recipe),
+                new Action("Player does not have required items"),
+                PlayerHasRequiredItems);
+
+            //Has the player crafted the item at least once?
+            DecisionTreeNode craftedItem = new Decision(
+                Instance.completeAction,
+                hasItems,
+                PlayerHasCraftedRecipie,
+                true);
+
+            //does the player know the recipe
+            DecisionTreeNode knowRecipe = new Decision(
+                craftedItem,
+                new Action("Player doesn't knows recipe"),
+                PlayerKnowsRecipe,
+                true);
+            #endregion
+
+            return knowRecipe;
+        }
+
+
+        /// <summary>
         /// Combine Actions that tell the player to get the same item, but different amounts
         /// </summary>
         /// <param name="actions">The actions</param>
@@ -281,39 +352,6 @@ namespace Stardew_100_Percent_Mod
             }
 
             return actions;
-        }
-
-        /// <summary>
-        /// Combines Actions that have a specifc item
-        /// </summary>
-        /// <param name="itemId">the id of the desired item</param>
-        /// <param name="actions">the original list of actions</param>
-        /// <returns>a new list of actions with combined action that say to get the same item</returns>
-        private List<Action> CombineItemAction(string itemId, List<Action> actions)
-        {
-            List<Action> newList = new List<Action>();
-            bool foundItemAction = false;
-            for (int i = 0; i < actions.Count; i++)
-            {
-                Action action = actions[i];
-                if (action is GetItemAction)
-                {
-                    GetItemAction getItemAction = (GetItemAction)action;
-
-                    if (getItemAction.ItemId == itemId && !foundItemAction)
-                    {
-                        foundItemAction = true;
-                        newList.Add(getItemAction);
-                    }
-                }
-
-                else
-                {
-                    newList.Add(action);
-                }
-            }
-
-            return newList;
         }
 
         public void UpdateRequiredItemsDictionary(string itemId, int count)
@@ -370,5 +408,41 @@ namespace Stardew_100_Percent_Mod
             
             return;
         }
+
+
+                /// <summary>
+        /// Combines Actions that have a specifc item
+        /// </summary>
+        /// <param name="itemId">the id of the desired item</param>
+        /// <param name="actions">the original list of actions</param>
+        /// <returns>a new list of actions with combined action that say to get the same item</returns>
+        private List<Action> CombineItemAction(string itemId, List<Action> actions)
+        {
+            List<Action> newList = new List<Action>();
+            bool foundItemAction = false;
+            for (int i = 0; i < actions.Count; i++)
+            {
+                Action action = actions[i];
+                if (action is GetItemAction)
+                {
+                    GetItemAction getItemAction = (GetItemAction)action;
+
+                    if (getItemAction.ItemId == itemId && !foundItemAction)
+                    {
+                        foundItemAction = true;
+                        newList.Add(getItemAction);
+                    }
+                }
+
+                else
+                {
+                    newList.Add(action);
+                }
+            }
+
+            return newList;
+        }
+
+
     }
 }
