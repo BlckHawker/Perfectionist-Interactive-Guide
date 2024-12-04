@@ -42,6 +42,17 @@ namespace Stardew_100_Percent_Mod
         //key is the item id
         //value is the amount of that item that is free to use
         public Dictionary<string, int> inventoryItemReserveDictonary { get; private set; }
+
+
+        //A dictionary to easily hold the id of each item
+        private Dictionary<ItemName, string> itemIds { get; set; }
+
+        private enum ItemName
+        { 
+            ParsnipSeeds,
+            Wood
+        }
+
         public TaskManager()
         {
 
@@ -56,21 +67,19 @@ namespace Stardew_100_Percent_Mod
             Instance.requiredItemsDictionary = new Dictionary<string, int>();
             Instance.inventoryItemReserveDictonary = new Dictionary<string, int>();
 
+            Instance.itemIds = new Dictionary<ItemName, string>()
+            {
+                { ItemName.ParsnipSeeds, "(O)472"},
+                { ItemName.Wood, "(O)388"},
+            };
+
 
             Instance.completeAction = new Action("");
 
             Instance.dummyItems = new List<DummyItem>()
-            { new DummyItem("388", "Wood") };
+            { GetDummyItem(ItemName.Wood)};
 
-            string parsnipId = "472";
-            string woodId = "388";
-
-
-            DecisionTreeNode woodsTree = GetProducableItemTree(woodId, 50);
-
-            DecisionTreeNode parsnipSeedsTree = GetProducableItemTree(parsnipId, 15);
-
-            DecisionTreeNode becomeFriendsWithSebastian = BecomeFriendsWithNPC("Sebastian");
+            DecisionTreeNode parsnipSeedsTree = GetProducableItemTree(Instance.itemIds[ItemName.ParsnipSeeds], 15);
 
             DecisionTreeNode becomeFriendsWithJas = BecomeFriendsWithNPC("Jas");
 
@@ -81,15 +90,26 @@ namespace Stardew_100_Percent_Mod
         }
 
         /// <summary>
+        /// Helper method to create a DummyItem out of an ItemName
+        /// </summary>
+        /// <param name="itemName"></param>
+        /// <returns></returns>
+        private static DummyItem GetDummyItem(ItemName itemName)
+        {
+            KeyValuePair<ItemName, string> kv = Instance.itemIds.FirstOrDefault(kv => kv.Key == ItemName.Wood);
+            return new DummyItem(kv.Value, kv.Key.ToString());
+        }
+
+        /// <summary>
         /// Helper method that will get all of the nodes that will check if the player
         /// has the desired item throughout the entire world
         /// </summary>
         /// <returns>The root node of the tree that will check for parsnips</returns>
-        private static DecisionTreeNode GetProducableItemTree(string itemId, int desiredAmount)
+        private static DecisionTreeNode GetProducableItemTree(string qualifiedItemId, int desiredAmount)
         { 
 
-            Item item = ItemLocator.GetItem(itemId);
-            DummyItem dummyItem = Instance.dummyItems.FirstOrDefault(i => i.itemId == itemId);
+            Item item = ItemLocator.GetItem(qualifiedItemId);
+            DummyItem dummyItem = Instance.dummyItems.FirstOrDefault(i => i.QualifiedItemId == qualifiedItemId);
 
 
 
@@ -99,14 +119,14 @@ namespace Stardew_100_Percent_Mod
 
             string GetItemFromStore()
             {
-                int playerInventoryCount = ItemLocator.PlayerItemCount(itemId);
+                int playerInventoryCount = ItemLocator.PlayerItemCount(qualifiedItemId);
 
                 if (item != null)
                 {
-                    return $"Buy {Instance.requiredItemsDictionary[itemId] - playerInventoryCount} {item.Name}(s) from store";
+                    return $"Buy {Instance.requiredItemsDictionary[qualifiedItemId] - playerInventoryCount} {item.Name}(s) from store";
                 }
 
-                return $"Buy {Instance.requiredItemsDictionary[itemId] - playerInventoryCount} {dummyItem.DisplayName}(s) from store";
+                return $"Buy {Instance.requiredItemsDictionary[qualifiedItemId] - playerInventoryCount} {dummyItem.DisplayName}(s) from store";
             }
 
             //Return the amount of items he player should get from that location
@@ -114,13 +134,13 @@ namespace Stardew_100_Percent_Mod
             {
                 GameLocation location = Game1.locations.First(l => l.NameOrUniqueName == uniqueLocationName);
 
-                Chest chest = ItemLocator.GetChestsWithItem(location, itemId).First();
+                Chest chest = ItemLocator.GetChestsWithItem(location, qualifiedItemId).First();
 
-                int locationItemCount = ItemLocator.GetChestItemCount(chest, itemId);
+                int locationItemCount = ItemLocator.GetChestItemCount(chest, qualifiedItemId);
 
-                int playerInventoryCount = ItemLocator.PlayerItemCount(itemId);
+                int playerInventoryCount = ItemLocator.PlayerItemCount(qualifiedItemId);
 
-                int desiredCount = Math.Min(locationItemCount, Instance.requiredItemsDictionary[itemId] - playerInventoryCount);
+                int desiredCount = Math.Min(locationItemCount, Instance.requiredItemsDictionary[qualifiedItemId] - playerInventoryCount);
 
                 //did i just change this?
                 return $"Get {desiredCount} {item.Name} from chest in {uniqueLocationName} at {chest.TileLocation}";
@@ -145,7 +165,7 @@ namespace Stardew_100_Percent_Mod
             bool LocationHasItem(string uniqueLocationName)
             {
                 GameLocation location = Game1.locations.First(l => l.NameOrUniqueName == uniqueLocationName);
-                return ItemLocator.LocationHasItem(location, itemId);
+                return ItemLocator.LocationHasItem(location, qualifiedItemId);
             }
 
             //The farm has the desired item
@@ -164,8 +184,8 @@ namespace Stardew_100_Percent_Mod
             bool PlayerHasDesieredAmountOfItem()
             {
                 //check if found in the player's ivnentory
-                Instance.inventoryItemReserveDictonary.TryGetValue(itemId, out int itemCount);
-                Instance.UpdateReservedItemDicionary(itemId, -desiredAmount);
+                Instance.inventoryItemReserveDictonary.TryGetValue(qualifiedItemId, out int itemCount);
+                Instance.UpdateReservedItemDicionary(qualifiedItemId, -desiredAmount);
                 bool conditon = itemCount >= desiredAmount;
                 return conditon;
             }
@@ -176,13 +196,13 @@ namespace Stardew_100_Percent_Mod
             #region Tree
             //there is at least one loction where the player has parsnip seeds to in the farm
             Decision playerHasItemOnFarm = new Decision(
-                new GetItemAction(itemId, GetParsnipSeedCountFromFarm),
-                new GetItemAction(itemId, GetItemFromStore),
+                new GetItemAction(qualifiedItemId, GetParsnipSeedCountFromFarm),
+                new GetItemAction(qualifiedItemId, GetItemFromStore),
                 new Decision.DecisionDelegate(FarmHasParsnipSeeds));
 
             //there is at least one loction where the player has parsnip seeds to in the farm house
             Decision playerHasItemOnFarmHouse = new Decision(
-                new GetItemAction(itemId, GetParsnipSeedCountFromFarmHouse),
+                new GetItemAction(qualifiedItemId, GetParsnipSeedCountFromFarmHouse),
                 playerHasItemOnFarm,
                 new Decision.DecisionDelegate(FarmHouseHasParsnipSeeds));
 
@@ -192,7 +212,7 @@ namespace Stardew_100_Percent_Mod
                 playerHasItemOnFarmHouse,
                 new Decision.DecisionDelegate(PlayerHasDesieredAmountOfItem));
 
-            return new Root(playerHasItemInInventory, itemId, desiredAmount);
+            return new Root(playerHasItemInInventory, qualifiedItemId, desiredAmount);
             #endregion
         }
 
@@ -345,11 +365,11 @@ namespace Stardew_100_Percent_Mod
             {
                 if (action is GetItemAction)
                 {
-                    string itemId = ((GetItemAction)action).ItemId;
+                    string qualifiedItemId = ((GetItemAction)action).QualifiedItemId;
 
-                    if (!itemIds.Contains(itemId))
+                    if (!itemIds.Contains(qualifiedItemId))
                     {
-                        itemIds.Add(itemId);
+                        itemIds.Add(qualifiedItemId);
                     }
                 }
             }
@@ -363,27 +383,27 @@ namespace Stardew_100_Percent_Mod
             return actions;
         }
 
-        public void UpdateRequiredItemsDictionary(string itemId, int count)
+        public void UpdateRequiredItemsDictionary(string qualifiedItemId, int count)
         {
-            if (!requiredItemsDictionary.ContainsKey(itemId))
+            if (!requiredItemsDictionary.ContainsKey(qualifiedItemId))
             {
-                requiredItemsDictionary[itemId] = count;
+                requiredItemsDictionary[qualifiedItemId] = count;
             }
 
             else
             { 
-                requiredItemsDictionary[itemId] += count;
+                requiredItemsDictionary[qualifiedItemId] += count;
             }
         }
 
-        public void UpdateReservedItemDicionary(string itemId, int count)
+        public void UpdateReservedItemDicionary(string qualifiedItemId, int count)
         {
-            if (inventoryItemReserveDictonary.ContainsKey(itemId))
+            if (inventoryItemReserveDictonary.ContainsKey(qualifiedItemId))
             {
-                inventoryItemReserveDictonary[itemId] += count;
+                inventoryItemReserveDictonary[qualifiedItemId] += count;
 
                 //clamp to zero
-                inventoryItemReserveDictonary[itemId] = Math.Clamp(inventoryItemReserveDictonary[itemId], 0, int.MaxValue);
+                inventoryItemReserveDictonary[qualifiedItemId] = Math.Clamp(inventoryItemReserveDictonary[qualifiedItemId], 0, int.MaxValue);
             }
             
         }
@@ -395,7 +415,7 @@ namespace Stardew_100_Percent_Mod
 
             Utility.ForEachItem(delegate (Item item)
             {
-                inventoryItemReserveDictonary[item.ItemId] = ItemLocator.PlayerItemCount(item.ItemId);
+                inventoryItemReserveDictonary[item.QualifiedItemId] = ItemLocator.PlayerItemCount(item.QualifiedItemId);
                 return true;
             });
 
@@ -403,14 +423,15 @@ namespace Stardew_100_Percent_Mod
             if (Game1.player.CursorSlotItem != null)
             {
                 Item item = Game1.player.CursorSlotItem;
-                if (inventoryItemReserveDictonary.ContainsKey(item.ItemId))
+                string id = item.QualifiedItemId;
+                if (inventoryItemReserveDictonary.ContainsKey(id))
                 {
-                    inventoryItemReserveDictonary[item.ItemId] += ItemLocator.PlayerItemCount(item.ItemId);
+                    inventoryItemReserveDictonary[id] += ItemLocator.PlayerItemCount(id);
                 }
 
                 else
                 { 
-                    inventoryItemReserveDictonary[item.ItemId] = ItemLocator.PlayerItemCount(item.ItemId);
+                    inventoryItemReserveDictonary[id] = ItemLocator.PlayerItemCount(id);
                 }
             }
             //order by count in decending order
@@ -419,13 +440,13 @@ namespace Stardew_100_Percent_Mod
         }
 
 
-                /// <summary>
+        /// <summary>
         /// Combines Actions that have a specifc item
         /// </summary>
-        /// <param name="itemId">the id of the desired item</param>
+        /// <param name="qualifiedItemId">the id of the desired item</param>
         /// <param name="actions">the original list of actions</param>
         /// <returns>a new list of actions with combined action that say to get the same item</returns>
-        private List<Action> CombineItemAction(string itemId, List<Action> actions)
+        private List<Action> CombineItemAction(string qualifiedItemId, List<Action> actions)
         {
             List<Action> newList = new List<Action>();
             bool foundItemAction = false;
@@ -436,7 +457,7 @@ namespace Stardew_100_Percent_Mod
                 {
                     GetItemAction getItemAction = (GetItemAction)action;
 
-                    if (getItemAction.ItemId == itemId && !foundItemAction)
+                    if (getItemAction.QualifiedItemId == qualifiedItemId && !foundItemAction)
                     {
                         foundItemAction = true;
                         newList.Add(getItemAction);

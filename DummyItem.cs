@@ -11,13 +11,19 @@ namespace Stardew_100_Percent_Mod
     /// </summary>
     internal class DummyItem
     {
-        public string itemId { get; private set; }
+        public string QualifiedItemId { get; private set; }
         public string DisplayName { get; private set; }
 
-        public DummyItem(string itemId, string displayName)
+        public DummyItem(string qualifiedItemId, string displayName)
         { 
-            this.itemId = itemId;
-            this.DisplayName = displayName;
+            QualifiedItemId = qualifiedItemId;
+            DisplayName = displayName;
+        }
+
+        public DummyItem(KeyValuePair<string, string> kv)
+        {
+            QualifiedItemId = kv.Value;
+            DisplayName = kv.Key;
         }
     }
 }
