@@ -27,8 +27,15 @@ namespace Stardew_100_Percent_Mod
         public delegate void LogMethod(string message, LogLevel logLevel = LogLevel.Debug);
         public LogMethod logMethod;
 
+        //means either the player completed the overall task, or they need to go to bed.
+        //Either way, there's nothing to display to them, which is why it's an empty string
         private Action completeAction;
 
+        //Keeps track of how many of each item the user needs
+        //Used so there aren't multiple tasks saying "Buy x items at store"
+        //Example, there are two tasks that both rquire the user to get 15 seeds
+        //We don't want two tasks saying "Buy 15 seeds at store"
+        //It should say "Buy 30 seeds at store" instead
         Dictionary<string, int> requiredItemsDictionary;
 
         //keeps track of what items the player has in their inventory. Mainly used to reserve items for quests
@@ -47,6 +54,8 @@ namespace Stardew_100_Percent_Mod
             Instance.logMethod = logMethod;
 
             Instance.requiredItemsDictionary = new Dictionary<string, int>();
+            Instance.inventoryItemReserveDictonary = new Dictionary<string, int>();
+
 
             Instance.completeAction = new Action("");
 
@@ -68,7 +77,7 @@ namespace Stardew_100_Percent_Mod
             DecisionTreeNode craftChest = CraftItem("Chest");
 
 
-            Instance.roots = new List<DecisionTreeNode>(new[] { woodsTree, craftChest, parsnipSeedsTree, becomeFriendsWithJas });
+            Instance.roots = new List<DecisionTreeNode>(new[] { craftChest, parsnipSeedsTree, becomeFriendsWithJas });
         }
 
         /// <summary>
@@ -382,8 +391,7 @@ namespace Stardew_100_Percent_Mod
         public void ResetItemDictionarys()
         {
             requiredItemsDictionary.Clear();
-
-            inventoryItemReserveDictonary = new Dictionary<string, int>();
+            inventoryItemReserveDictonary.Clear();
 
             Utility.ForEachItem(delegate (Item item)
             {
@@ -405,7 +413,8 @@ namespace Stardew_100_Percent_Mod
                     inventoryItemReserveDictonary[item.ItemId] = ItemLocator.PlayerItemCount(item.ItemId);
                 }
             }
-            
+            //order by count in decending order
+            inventoryItemReserveDictonary = inventoryItemReserveDictonary.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => kv.Value);
             return;
         }
 
