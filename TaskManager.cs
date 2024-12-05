@@ -1,7 +1,9 @@
 ﻿using Stardew_100_Percent_Mod.Decision_Trees;
 using StardewModdingAPI;
 using StardewValley;
+using StardewValley.Menus;
 using StardewValley.Objects;
+using System;
 using static Stardew_100_Percent_Mod.NPCManager;
 
 namespace Stardew_100_Percent_Mod
@@ -41,11 +43,11 @@ namespace Stardew_100_Percent_Mod
         //keeps track of what items the player has in their inventory. Mainly used to reserve items for quests
         //key is the item id
         //value is the amount of that item that is free to use
-        public Dictionary<string, int> inventoryItemReserveDictonary { get; private set; }
+        public Dictionary<string, int> InventoryItemReserveDictonary { get; private set; }
 
 
         //A dictionary to easily hold the id of each item
-        private Dictionary<ItemName, string> itemIds { get; set; }
+        private Dictionary<ItemName, string> itemIds;
 
         private enum ItemName
         { 
@@ -65,7 +67,7 @@ namespace Stardew_100_Percent_Mod
             Instance.logMethod = logMethod;
 
             Instance.requiredItemsDictionary = new Dictionary<string, int>();
-            Instance.inventoryItemReserveDictonary = new Dictionary<string, int>();
+            Instance.InventoryItemReserveDictonary = new Dictionary<string, int>();
 
             Instance.itemIds = new Dictionary<ItemName, string>()
             {
@@ -76,8 +78,12 @@ namespace Stardew_100_Percent_Mod
 
             Instance.completeAction = new Action("");
 
-            Instance.dummyItems = new List<DummyItem>()
-            { GetDummyItem(ItemName.Wood)};
+            Instance.dummyItems = new List<DummyItem>();
+
+            foreach(ItemName k in Instance.itemIds.Keys)
+            {
+                Instance.dummyItems.Add(GetDummyItem(k));
+            }
 
             DecisionTreeNode parsnipSeedsTree = GetProducableItemTree(Instance.itemIds[ItemName.ParsnipSeeds], 15);
 
@@ -96,7 +102,7 @@ namespace Stardew_100_Percent_Mod
         /// <returns></returns>
         private static DummyItem GetDummyItem(ItemName itemName)
         {
-            KeyValuePair<ItemName, string> kv = Instance.itemIds.FirstOrDefault(kv => kv.Key == ItemName.Wood);
+            KeyValuePair<ItemName, string> kv = Instance.itemIds.First(kv => kv.Key == itemName);
             return new DummyItem(kv.Value, kv.Key.ToString());
         }
 
@@ -109,7 +115,7 @@ namespace Stardew_100_Percent_Mod
         { 
 
             Item item = ItemLocator.GetItem(qualifiedItemId);
-            DummyItem dummyItem = Instance.dummyItems.FirstOrDefault(i => i.QualifiedItemId == qualifiedItemId);
+            DummyItem dummyItem = Instance.dummyItems.First(i => i.QualifiedItemId == qualifiedItemId);
 
 
 
@@ -119,7 +125,11 @@ namespace Stardew_100_Percent_Mod
 
             string GetItemFromStore()
             {
-                int playerInventoryCount = ItemLocator.PlayerItemCount(qualifiedItemId);
+                //get the amount of the item the player currently has including iventory, iventory cursor, and shop cursor
+                int playerInventoryCount = ItemLocator.PlayerItemCount(qualifiedItemId) + ItemLocator.ShopCursorCount(qualifiedItemId);
+
+                //check if the player is buying something from the store and their cursor has the desried item
+                
 
                 if (item != null)
                 {
@@ -184,7 +194,7 @@ namespace Stardew_100_Percent_Mod
             bool PlayerHasDesieredAmountOfItem()
             {
                 //check if found in the player's ivnentory
-                Instance.inventoryItemReserveDictonary.TryGetValue(qualifiedItemId, out int itemCount);
+                Instance.InventoryItemReserveDictonary.TryGetValue(qualifiedItemId, out int itemCount);
                 Instance.UpdateReservedItemDicionary(qualifiedItemId, -desiredAmount);
                 bool conditon = itemCount >= desiredAmount;
                 return conditon;
@@ -313,7 +323,7 @@ namespace Stardew_100_Percent_Mod
             {
                 foreach (KeyValuePair<string, int> kv in recipe.recipeList)
                 {
-                    Instance.inventoryItemReserveDictonary.TryGetValue(kv.Key, out int inventoryCount);
+                    Instance.InventoryItemReserveDictonary.TryGetValue(kv.Key, out int inventoryCount);
                     if(inventoryCount < kv.Value)
                     {
                         return false;
@@ -392,52 +402,61 @@ namespace Stardew_100_Percent_Mod
 
             else
             { 
-                requiredItemsDictionary[qualifiedItemId] += count;
+                requiredItemsDictionary[qualifiedItemId] = count;
             }
         }
 
         public void UpdateReservedItemDicionary(string qualifiedItemId, int count)
         {
-            if (inventoryItemReserveDictonary.ContainsKey(qualifiedItemId))
+            if (InventoryItemReserveDictonary.ContainsKey(qualifiedItemId))
             {
-                inventoryItemReserveDictonary[qualifiedItemId] += count;
-
-                //clamp to zero
-                inventoryItemReserveDictonary[qualifiedItemId] = Math.Clamp(inventoryItemReserveDictonary[qualifiedItemId], 0, int.MaxValue);
+                InventoryItemReserveDictonary[qualifiedItemId] += count;
             }
-            
+
+            else
+            {
+                InventoryItemReserveDictonary[qualifiedItemId] = count;
+            }
+
+            //clamp to zero
+            InventoryItemReserveDictonary[qualifiedItemId] = Math.Clamp(InventoryItemReserveDictonary[qualifiedItemId], 0, int.MaxValue);
+
         }
 
         public void ResetItemDictionarys()
         {
             requiredItemsDictionary.Clear();
-            inventoryItemReserveDictonary.Clear();
+            InventoryItemReserveDictonary.Clear();
 
+            //foreach item in the world, count the amount of it appears in the player's inventory
             Utility.ForEachItem(delegate (Item item)
             {
-                inventoryItemReserveDictonary[item.QualifiedItemId] = ItemLocator.PlayerItemCount(item.QualifiedItemId);
+                InventoryItemReserveDictonary[item.QualifiedItemId] = ItemLocator.PlayerItemCount(item.QualifiedItemId);
                 return true;
             });
 
-            //check the cursor's held item (unsure why that is not caught in the for each mehod)
+            //check the cursor's held item in the player's inventory (unsure why that is not caught in the for each mehod)
             if (Game1.player.CursorSlotItem != null)
             {
                 Item item = Game1.player.CursorSlotItem;
                 string id = item.QualifiedItemId;
-                if (inventoryItemReserveDictonary.ContainsKey(id))
-                {
-                    inventoryItemReserveDictonary[id] += ItemLocator.PlayerItemCount(id);
-                }
-
-                else
-                { 
-                    inventoryItemReserveDictonary[id] = ItemLocator.PlayerItemCount(id);
-                }
+                UpdateReservedItemDicionary(id, ItemLocator.PlayerItemCount(id));
             }
+
+            //check the shop menu's cursor to see if the player has bought the item in said shop
+            Item shopItem = ItemLocator.ShopCursorItem();
+            if (shopItem != null)
+            {
+                string id = shopItem.QualifiedItemId;
+                UpdateReservedItemDicionary(id, ItemLocator.ShopCursorCount(id));
+            }
+
+
             //order by count in decending order
-            inventoryItemReserveDictonary = inventoryItemReserveDictonary.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => kv.Value);
+            InventoryItemReserveDictonary = InventoryItemReserveDictonary.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => kv.Value);
             return;
         }
+
 
 
         /// <summary>

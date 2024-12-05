@@ -1,5 +1,7 @@
 ﻿using StardewValley;
+using StardewValley.GameData;
 using StardewValley.Internal;
+using StardewValley.Menus;
 using StardewValley.Objects;
 using System;
 using System.Collections.Generic;
@@ -144,6 +146,39 @@ namespace Stardew_100_Percent_Mod
 
             return count;
         }
+
+        /// <summary>
+        /// Checks how many of the desired item is in their shop cursors
+        /// </summary>
+        /// <param name="qualifiedItemId">the id of the desired item</param>
+        /// <returns></returns>
+        public static int ShopCursorCount(string qualifiedItemId)
+        {
+            Item item = ShopCursorItem();
+
+            if (item != null && item.QualifiedItemId == qualifiedItemId)
+            {
+                return item.Stack;
+               
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// Gets the item the player is holding in the shop cursor
+        /// </summary>
+        /// <returns>The item the player is holding while in a shop. null otherwise</returns>
+        public static Item? ShopCursorItem()
+        {
+            if (Game1.activeClickableMenu is ShopMenu menu)
+            {
+                return (Item)menu.heldItem;
+            }
+
+            return null;
+        }
+
 
         /// <summary>
         /// Checks if there are any chests with the a specifc item
