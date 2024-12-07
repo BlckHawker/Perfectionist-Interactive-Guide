@@ -1,9 +1,7 @@
 ﻿using Stardew_100_Percent_Mod.Decision_Trees;
 using StardewModdingAPI;
 using StardewValley;
-using StardewValley.Menus;
 using StardewValley.Objects;
-using System;
 using static Stardew_100_Percent_Mod.NPCManager;
 
 namespace Stardew_100_Percent_Mod
@@ -47,10 +45,14 @@ namespace Stardew_100_Percent_Mod
 
 
         //A dictionary to easily hold the id of each item
-        private Dictionary<ItemName, string> itemIds;
+        public Dictionary<ItemName, string> ItemIds { get; private set; }
 
-        private enum ItemName
-        { 
+        //List of all of the custom crafting recipes (see class defintion to see reason why it exists)
+        private List<DummyCraftingRecipe> dummyCraftingRecipes;
+
+        public enum ItemName
+        {
+            CopperBar,
             ParsnipSeeds,
             Wood
         }
@@ -69,27 +71,32 @@ namespace Stardew_100_Percent_Mod
             Instance.requiredItemsDictionary = new Dictionary<string, int>();
             Instance.InventoryItemReserveDictonary = new Dictionary<string, int>();
 
-            Instance.itemIds = new Dictionary<ItemName, string>()
+            Instance.ItemIds = new Dictionary<ItemName, string>()
             {
                 { ItemName.ParsnipSeeds, "(O)472"},
                 { ItemName.Wood, "(O)388"},
+                { ItemName.CopperBar, "(O)344"},
+
             };
 
+            Instance.dummyCraftingRecipes = DummyCraftingRecipe.GetAllRecipes();
 
             Instance.completeAction = new Action("");
 
             Instance.dummyItems = new List<DummyItem>();
 
-            foreach(ItemName k in Instance.itemIds.Keys)
+            foreach(ItemName k in Instance.ItemIds.Keys)
             {
                 Instance.dummyItems.Add(GetDummyItem(k));
             }
 
-            DecisionTreeNode parsnipSeedsTree = GetProducableItemTree(Instance.itemIds[ItemName.ParsnipSeeds], 15);
+            DecisionTreeNode parsnipSeedsTree = GetProducableItemTree(Instance.ItemIds[ItemName.ParsnipSeeds], 15);
 
             DecisionTreeNode becomeFriendsWithJas = BecomeFriendsWithNPC("Jas");
 
             DecisionTreeNode craftChest = CraftItem("Chest");
+
+            DecisionTreeNode c = CraftItem("Big Chest");
 
 
             Instance.roots = new List<DecisionTreeNode>(new[] { craftChest, parsnipSeedsTree, becomeFriendsWithJas });
@@ -102,7 +109,7 @@ namespace Stardew_100_Percent_Mod
         /// <returns></returns>
         private static DummyItem GetDummyItem(ItemName itemName)
         {
-            KeyValuePair<ItemName, string> kv = Instance.itemIds.First(kv => kv.Key == itemName);
+            KeyValuePair<ItemName, string> kv = Instance.ItemIds.First(kv => kv.Key == itemName);
             return new DummyItem(kv.Value, kv.Key.ToString());
         }
 
@@ -111,7 +118,7 @@ namespace Stardew_100_Percent_Mod
         /// has the desired item throughout the entire world
         /// </summary>
         /// <returns>The root node of the tree that will check for parsnips</returns>
-        private static DecisionTreeNode GetProducableItemTree(string qualifiedItemId, int desiredAmount)
+        public static DecisionTreeNode GetProducableItemTree(string qualifiedItemId, int desiredAmount)
         { 
 
             Item item = ItemLocator.GetItem(qualifiedItemId);
@@ -152,7 +159,6 @@ namespace Stardew_100_Percent_Mod
 
                 int desiredCount = Math.Min(locationItemCount, Instance.requiredItemsDictionary[qualifiedItemId] - playerInventoryCount);
 
-                //did i just change this?
                 return $"Get {desiredCount} {item.Name} from chest in {uniqueLocationName} at {chest.TileLocation}";
             }
 
@@ -305,6 +311,7 @@ namespace Stardew_100_Percent_Mod
         {
             ///when the actions is reached, remove items from inventory reserve
             CraftingRecipe recipe = new CraftingRecipe(name);
+            DummyCraftingRecipe dummyRecipe = Instance.dummyCraftingRecipes.First(r => r.Name == name);
             #region Delegate Actions
 
             #endregion
@@ -321,16 +328,7 @@ namespace Stardew_100_Percent_Mod
 
             bool PlayerHasRequiredItems()
             {
-                foreach (KeyValuePair<string, int> kv in recipe.recipeList)
-                {
-                    Instance.InventoryItemReserveDictonary.TryGetValue(kv.Key, out int inventoryCount);
-                    if(inventoryCount < kv.Value)
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
+                return Instance.GetRecipeMissingItems(dummyRecipe).Count == 0;
             }
 
             #endregion
@@ -339,8 +337,8 @@ namespace Stardew_100_Percent_Mod
 
             //Does player have the required items to create the item in their inventory
             DecisionTreeNode hasItems = new Decision(
+                new Action($"Craft {name}"),
                 new CraftItemAction(recipe),
-                new Action("Player does not have required items"),
                 PlayerHasRequiredItems);
 
             //Has the player crafted the item at least once?
@@ -353,12 +351,34 @@ namespace Stardew_100_Percent_Mod
             //does the player know the recipe
             DecisionTreeNode knowRecipe = new Decision(
                 craftedItem,
-                new Action("Player doesn't knows recipe"),
+                new Action($"Learn {name} recipe"),
                 PlayerKnowsRecipe,
                 true);
             #endregion
 
             return knowRecipe;
+        }
+
+        /// <summary>
+        /// Get a list of all of the items the player is missing to craft the desired recipe
+        /// </summary>
+        /// <param name="recipe">the deisred recipie to craft</param>
+        /// <returns>A list of the qualified item ids of the missing items. Empty if the user has enough of all the items</returns>
+        public List<string> GetRecipeMissingItems(DummyCraftingRecipe recipe)
+        {
+            List<string> missingItems = new List<string>();
+
+            foreach (KeyValuePair<string, int> kv in recipe.RecipeList)
+            {
+
+                Instance.InventoryItemReserveDictonary.TryGetValue(kv.Key, out int inventoryCount);
+                if (inventoryCount < kv.Value)
+                {
+                    missingItems.Add(kv.Key);
+                }
+            }
+
+            return missingItems;
         }
 
 
@@ -395,6 +415,10 @@ namespace Stardew_100_Percent_Mod
 
         public void UpdateRequiredItemsDictionary(string qualifiedItemId, int count)
         {
+            if(qualifiedItemId == "388")
+            {
+                logMethod("a");
+            }
             if (!requiredItemsDictionary.ContainsKey(qualifiedItemId))
             {
                 requiredItemsDictionary[qualifiedItemId] = count;
@@ -408,6 +432,11 @@ namespace Stardew_100_Percent_Mod
 
         public void UpdateReservedItemDicionary(string qualifiedItemId, int count)
         {
+            if (qualifiedItemId == "388")
+            {
+                logMethod("j");
+            }
+
             if (InventoryItemReserveDictonary.ContainsKey(qualifiedItemId))
             {
                 InventoryItemReserveDictonary[qualifiedItemId] += count;
@@ -431,6 +460,10 @@ namespace Stardew_100_Percent_Mod
             //foreach item in the world, count the amount of it appears in the player's inventory
             Utility.ForEachItem(delegate (Item item)
             {
+                if (item.QualifiedItemId == "388")
+                {
+                    logMethod("j");
+                }
                 InventoryItemReserveDictonary[item.QualifiedItemId] = ItemLocator.PlayerItemCount(item.QualifiedItemId);
                 return true;
             });

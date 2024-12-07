@@ -7,18 +7,29 @@ using System.Threading.Tasks;
 
 namespace Stardew_100_Percent_Mod.Decision_Trees
 {
-    //posibly remove this class since it's pretty redundant compared to a regular Action object
+    /// <summary>
+    /// Used to handle crafting a recipe
+    /// </summary>
     internal class CraftItemAction : DecisionTreeNode
     {
-        private CraftingRecipe recipe;
+        private DummyCraftingRecipe recipe;
         public CraftItemAction(CraftingRecipe recipe)
-        { 
-            this.recipe = recipe;
+        {
+            this.recipe = DummyCraftingRecipe.GetAllRecipes().First(r => r.Name == recipe.DisplayName);
         }
 
+
+
+        /// <summary>
+        ///Tells the user to get an item they're missing for the recipe
+        /// </summary>
+        /// <returns>A tree of getting the missing item</returns>
         public override DecisionTreeNode MakeDecision()
         {
-            return new Action($"Craft {recipe.DisplayName}");
+            //it's garunteed that the list is not empty. Otherwise this Action would have not been created
+            string id = TaskManager.Instance.GetRecipeMissingItems(recipe)[0];
+
+            return TaskManager.GetProducableItemTree(id, recipe.RecipeList[id]).MakeDecision();
         }
     }
 }

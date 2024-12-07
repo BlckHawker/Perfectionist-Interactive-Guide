@@ -15,12 +15,17 @@ using StardewValley.Objects;
 using StardewValley.GameData.Characters;
 using static Stardew_100_Percent_Mod.NPCManager;
 using StardewValley.GameData;
+using System.Diagnostics;
 
 namespace Stardew_100_Percent_Mod
 {
     /// <summary>The mod entry point.</summary>
     internal sealed class ModEntry : Mod
     {
+        private readonly Stopwatch renderWatch = new();
+        private string RenderTime = "--";
+        private string framerate = "--";
+        private int frames = 0;
         /*********
         ** Public methods
         *********/
@@ -31,11 +36,9 @@ namespace Stardew_100_Percent_Mod
             helper.Events.GameLoop.UpdateTicking += OnUpdateTicked;
             helper.Events.GameLoop.SaveLoaded += SaveLoaded;
             helper.Events.Display.RenderedHud += OnRenderedHud;
+            helper.Events.Display.Rendered += Rendered;
 
-
-            Menu.SetMonitor(this.Monitor);
-
-            
+            Menu.SetMonitor(Monitor);
         }
 
         private void SaveLoaded(object? sender, SaveLoadedEventArgs e)
@@ -53,13 +56,19 @@ namespace Stardew_100_Percent_Mod
             if (!Context.IsWorldReady)
                 return;
 
-            
+            if (e.IsOneSecond)
+            {
+                framerate = $"Framerate: {frames} FPS.";
+                frames = 0;
+            }
+
             TaskManager.Instance.ResetItemDictionarys();
 
             //Go through the decsion tree and check what the desired action is
             List<Action> actions = TaskManager.Instance.roots.Select(root => (Action)root.MakeDecision() ).ToList();
 
             actions = TaskManager.Instance.CombineItemActions(actions);
+            actions.Insert(0, new Action(framerate));
             Menu.SetTasks(actions);
 
         }
@@ -75,6 +84,18 @@ namespace Stardew_100_Percent_Mod
         private void Log(string message, LogLevel logLevel = LogLevel.Debug)
         {
             this.Monitor.Log(message, logLevel);
+        }
+
+        private void Rendered(object? sender, RenderedEventArgs e)
+        {
+            this.renderWatch.Stop();
+            double ms = this.renderWatch.Elapsed.TotalMilliseconds;
+            if (Game1.ticks % 5 == 0 || ms > 5)
+            {
+                this.RenderTime = $"Render time: {ms:00.00} ms.";
+            }
+
+            this.frames += 1;
         }
 
     }
