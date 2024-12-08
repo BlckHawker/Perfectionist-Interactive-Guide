@@ -1,7 +1,10 @@
 ﻿using Stardew_100_Percent_Mod.Decision_Trees;
 using StardewModdingAPI;
 using StardewValley;
+using StardewValley.Locations;
 using StardewValley.Objects;
+using System;
+using System.Drawing;
 using static Stardew_100_Percent_Mod.NPCManager;
 
 namespace Stardew_100_Percent_Mod
@@ -30,6 +33,9 @@ namespace Stardew_100_Percent_Mod
         //means either the player completed the overall task, or they need to go to bed.
         //Either way, there's nothing to display to them, which is why it's an empty string
         private Action completeAction;
+
+        //branch to get a kitchen
+        private DecisionTreeNode getKitchen;
 
         //Keeps track of how many of each item the user needs
         //Used so there aren't multiple tasks saying "Buy x items at store"
@@ -96,10 +102,12 @@ namespace Stardew_100_Percent_Mod
 
             DecisionTreeNode craftChest = CraftItem("Chest");
 
-            DecisionTreeNode c = CraftItem("Big Chest");
+            DecisionTreeNode cookOmelet = CookItem("Omelet");
+
+            Instance.roots = new List<DecisionTreeNode>(new[] { cookOmelet });
 
 
-            Instance.roots = new List<DecisionTreeNode>(new[] { craftChest, parsnipSeedsTree, becomeFriendsWithJas });
+            //Instance.roots = new List<DecisionTreeNode>(new[] { craftChest, parsnipSeedsTree, becomeFriendsWithJas });
         }
 
         /// <summary>
@@ -112,6 +120,10 @@ namespace Stardew_100_Percent_Mod
             KeyValuePair<ItemName, string> kv = Instance.ItemIds.First(kv => kv.Key == itemName);
             return new DummyItem(kv.Value, kv.Key.ToString());
         }
+
+        
+
+
 
         /// <summary>
         /// Helper method that will get all of the nodes that will check if the player
@@ -307,7 +319,7 @@ namespace Stardew_100_Percent_Mod
         /// </summary>
         /// <param name="name">the name of the item that the player would like to craft</param>
         /// <returns></returns>
-        public static DecisionTreeNode CraftItem(string name)
+        private static DecisionTreeNode CraftItem(string name)
         {
             ///when the actions is reached, remove items from inventory reserve
             CraftingRecipe recipe = new CraftingRecipe(name);
@@ -357,6 +369,41 @@ namespace Stardew_100_Percent_Mod
             #endregion
 
             return knowRecipe;
+        }
+
+        /// <summary>
+        /// Get the branch to cook an item
+        /// </summary>
+        /// <param name="name">the name of the recipe to be cooked</param>
+        /// <returns></returns>
+        private static DecisionTreeNode CookItem(string name)
+        {
+            bool PlayerHasKitchen()
+            {
+                FarmHouse farmhouse = (FarmHouse)Game1.locations.First(l => l.NameOrUniqueName == "FarmHouse");
+                Microsoft.Xna.Framework.Point fridgePoint = farmhouse.fridgePosition;
+                return fridgePoint == Microsoft.Xna.Framework.Point.Zero;
+            }
+
+            bool HasRequestedHouseUpgrade()
+            {
+                return Game1.player.daysUntilHouseUpgrade.Value != -1;
+            }
+
+            //has the player requested a house upgrade?
+            Decision HasRequesetedHouseUpgrade = new Decision(new Action("Player has requsted house upgrade"),
+                                        new Action("Player has not requsted house upgrade"),
+                                        HasRequestedHouseUpgrade,
+                                        true);
+
+
+            //does the player have a kitchen
+            Decision playerHasKitchen = new Decision(new Action("Player has a kitchen"),
+                                        HasRequesetedHouseUpgrade, 
+                                        PlayerHasKitchen, 
+                                        true);
+
+            return playerHasKitchen;
         }
 
         /// <summary>

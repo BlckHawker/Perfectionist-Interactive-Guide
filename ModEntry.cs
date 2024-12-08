@@ -16,6 +16,7 @@ using StardewValley.GameData.Characters;
 using static Stardew_100_Percent_Mod.NPCManager;
 using StardewValley.GameData;
 using System.Diagnostics;
+using StardewValley.Locations;
 
 namespace Stardew_100_Percent_Mod
 {
@@ -65,8 +66,12 @@ namespace Stardew_100_Percent_Mod
             TaskManager.Instance.ResetItemDictionarys();
 
             //Go through the decsion tree and check what the desired action is
-            List<Action> actions = TaskManager.Instance.roots.Select(root => (Action)root.MakeDecision() ).ToList();
+            //List<Action> actions = TaskManager.Instance.roots.Select(root => (Action)root.MakeDecision() ).ToList();
 
+            List<Action> actions = new List<Action>();
+            FarmHouse farmhouse = (FarmHouse)Game1.locations.First(l => l.NameOrUniqueName == "FarmHouse");
+            Point fridgePoint = farmhouse.fridgePosition;
+            
             actions = TaskManager.Instance.CombineItemActions(actions);
             actions.Insert(0, new Action(framerate));
             Menu.SetTasks(actions);
