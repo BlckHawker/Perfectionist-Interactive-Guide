@@ -3,6 +3,9 @@ using StardewModdingAPI;
 using StardewValley;
 using System.Diagnostics;
 using Stardew_100_Percent_Mod.Decision_Trees;
+using StardewValley.Locations;
+using System.Linq;
+using StardewValley.Buildings;
 
 namespace Stardew_100_Percent_Mod
 {
@@ -55,6 +58,15 @@ namespace Stardew_100_Percent_Mod
             List<Action> actions = TaskManager.Instance.roots.Select(root => (Action)root.MakeDecision() ).ToList();
             actions.Insert(0, new Action(framerate));
             actions = TaskManager.Instance.CombineActions(actions);
+
+            //check if the player has a shed on the farm
+            Farm farmHouse = (Farm)Game1.locations.First(l => l.NameOrUniqueName == "Farm");
+            actions.Add(new Action($"Shed construction in progress: unknown"));
+            actions.Add(new Action($"Shed count: {farmHouse.buildings.Count(b => b.GetType() == typeof(Shed))}"));
+            actions.Add(new Action($"Big Shed construction in progress: unknown"));
+            actions.Add(new Action($"Big Shed count: unknown"));
+
+
 
             Menu.SetTasks(actions);
         }

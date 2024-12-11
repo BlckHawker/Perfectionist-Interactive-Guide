@@ -113,11 +113,9 @@ namespace Stardew_100_Percent_Mod
 
             DecisionTreeNode cookOmelet = CraftItem("Omelet", true);
 
-            //Instance.roots = new List<DecisionTreeNode>();
+            Instance.roots = new List<DecisionTreeNode>();
 
-            Instance.roots = new List<DecisionTreeNode>(new[] { cookOmelet });
-
-            //Instance.roots = new List<DecisionTreeNode>(new[] { craftChest, parsnipSeedsTree, becomeFriendsWithJas });
+            //Instance.roots = new List<DecisionTreeNode>(new[] { cookOmelet, craftChest, parsnipSeedsTree, becomeFriendsWithJas });
         }
 
         /// <summary>
