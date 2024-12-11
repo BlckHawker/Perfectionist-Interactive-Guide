@@ -87,9 +87,9 @@ namespace Stardew_100_Percent_Mod
 
             Instance.ItemIds = new Dictionary<ItemName, string>()
             {
+                { ItemName.CopperBar, "(O)344"},
                 { ItemName.ParsnipSeeds, "(O)472"},
                 { ItemName.Wood, "(O)388"},
-                { ItemName.CopperBar, "(O)344"},
 
             };
 
@@ -128,12 +128,22 @@ namespace Stardew_100_Percent_Mod
             return new DummyItem(kv.Value, kv.Key.ToString());
         }
 
+
         /// <summary>
         /// Helper method that will get all of the nodes that will check if the player
         /// has the desired item throughout the entire world
         /// </summary>
         /// <returns>The root node of the tree that will check for parsnips</returns>
-        public static DecisionTreeNode GetProducableItemTree(string qualifiedItemId, int desiredAmount)
+       
+
+        /// <summary>
+        /// Tree branch that will tell the user how to get a specific item in the game
+        /// </summary>
+        /// <param name="qualifiedItemId">the id of the item that needs to be get</param>
+        /// <param name="desiredAmount">the amount of the item that would like to be aquired</param>
+        /// <param name="actionAfterward">if something should be done after the amount of the item is found</param>
+        /// <returns></returns>
+        public static DecisionTreeNode GetProducableItemTree(string qualifiedItemId, int desiredAmount, DecisionTreeNode? actionAfterward = null)
         { 
 
             Item item = ItemLocator.GetItem(qualifiedItemId);
@@ -240,7 +250,7 @@ namespace Stardew_100_Percent_Mod
 
             //the player has {desiredAmount} {item} on them
             Decision playerHasItemInInventory = new Decision(
-                completeAction,
+                actionAfterward == null ? completeAction : actionAfterward,
                 playerHasItemOnFarmHouse,
                 new Decision.DecisionDelegate(PlayerHasDesieredAmountOfItem));
 
@@ -408,8 +418,12 @@ namespace Stardew_100_Percent_Mod
 
             #region Tree
 
+
+            //does the player have 450 wood? If they do, tell them to get the kitchen upgrade from Robin
+            DecisionTreeNode playerHasWood = GetProducableItemTree(Instance.ItemIds[ItemName.Wood], 450, new Action("Get kitchen upgrade from Robin"));
+
             //does the player have enough money for the first house upgrade
-            Decision enoughMoney = new Decision(new Action("Player has 10k"),
+            Decision enoughMoney = new Decision(playerHasWood,
                                    Instance.getMoneyAction,
                                    HasMoneyForHouseUpgrade);
 
@@ -516,10 +530,35 @@ namespace Stardew_100_Percent_Mod
         /// <returns>a new list of actions without duplicates</returns>
         public List<Action> CombineActions(List<Action> actions)
         {
+            //combine special actions
             actions = CombineItemActions(actions);
             actions = CombineMoneyActions(actions);
-            return actions;
+
+            //combine the regular actions
+
+            //get all of the regular actions strings that are not duplciates
+            List<Action> newList = new List<Action>();
+
+            //make a new list of actions gettting rid of duplicate regular actions
+            foreach(Action action in actions)
+            {
+                //if it's a specical action, add it and move on
+                if(action.GetType() != typeof(Action))
+                {
+                    newList.Add(action);
+                    continue;
+                }
+
+                //if the action is special, only add it if the list doesn't have action display name
+                if (newList.All(a => a.DisplayName != action.DisplayName))
+                {
+                    newList.Add(action);
+                }
+            }
+
+            return newList;
         }
+
 
         public void UpdateRequiredItemsDictionary(string qualifiedItemId, int count)
         {
