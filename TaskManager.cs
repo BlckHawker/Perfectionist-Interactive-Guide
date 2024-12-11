@@ -4,8 +4,10 @@ using StardewValley;
 using StardewValley.Locations;
 using StardewValley.Objects;
 using System;
-using System.Drawing;
+using System.Reflection.Emit;
+using System.Runtime.InteropServices;
 using static Stardew_100_Percent_Mod.NPCManager;
+using static System.Collections.Specialized.BitVector32;
 
 namespace Stardew_100_Percent_Mod
 {
@@ -32,10 +34,12 @@ namespace Stardew_100_Percent_Mod
 
         //means either the player completed the overall task, or they need to go to bed.
         //Either way, there's nothing to display to them, which is why it's an empty string
-        private Action completeAction;
+        private static Action completeAction = new Action("");
 
-        //branch to get a kitchen
-        private DecisionTreeNode getKitchen;
+        //action that tells the user to get money
+        private GetMoneyAction getMoneyAction;
+
+
 
         //Keeps track of how many of each item the user needs
         //Used so there aren't multiple tasks saying "Buy x items at store"
@@ -49,7 +53,9 @@ namespace Stardew_100_Percent_Mod
         //value is the amount of that item that is free to use
         public Dictionary<string, int> InventoryItemReserveDictonary { get; private set; }
 
-
+        //how much money the player has to spare
+        public int reservedMoney;
+        private int requiredMoney;
         //A dictionary to easily hold the id of each item
         public Dictionary<ItemName, string> ItemIds { get; private set; }
 
@@ -77,6 +83,8 @@ namespace Stardew_100_Percent_Mod
             Instance.requiredItemsDictionary = new Dictionary<string, int>();
             Instance.InventoryItemReserveDictonary = new Dictionary<string, int>();
 
+            Instance.getMoneyAction = new GetMoneyAction(Instance.GetDesiredMoneyAmount);
+
             Instance.ItemIds = new Dictionary<ItemName, string>()
             {
                 { ItemName.ParsnipSeeds, "(O)472"},
@@ -86,8 +94,6 @@ namespace Stardew_100_Percent_Mod
             };
 
             Instance.dummyCraftingRecipes = DummyCraftingRecipe.GetAllRecipes();
-
-            Instance.completeAction = new Action("");
 
             Instance.dummyItems = new List<DummyItem>();
 
@@ -104,8 +110,9 @@ namespace Stardew_100_Percent_Mod
 
             DecisionTreeNode cookOmelet = CookItem("Omelet");
 
-            Instance.roots = new List<DecisionTreeNode>(new[] { cookOmelet });
+            //Instance.roots = new List<DecisionTreeNode>();
 
+            Instance.roots = new List<DecisionTreeNode>(new[] { cookOmelet, cookOmelet });
 
             //Instance.roots = new List<DecisionTreeNode>(new[] { craftChest, parsnipSeedsTree, becomeFriendsWithJas });
         }
@@ -120,10 +127,6 @@ namespace Stardew_100_Percent_Mod
             KeyValuePair<ItemName, string> kv = Instance.ItemIds.First(kv => kv.Key == itemName);
             return new DummyItem(kv.Value, kv.Key.ToString());
         }
-
-        
-
-
 
         /// <summary>
         /// Helper method that will get all of the nodes that will check if the player
@@ -217,6 +220,7 @@ namespace Stardew_100_Percent_Mod
                 bool conditon = itemCount >= desiredAmount;
                 return conditon;
             }
+
             #endregion
 
             #endregion
@@ -236,7 +240,7 @@ namespace Stardew_100_Percent_Mod
 
             //the player has {desiredAmount} {item} on them
             Decision playerHasItemInInventory = new Decision(
-                Instance.completeAction,
+                completeAction,
                 playerHasItemOnFarmHouse,
                 new Decision.DecisionDelegate(PlayerHasDesieredAmountOfItem));
 
@@ -287,7 +291,7 @@ namespace Stardew_100_Percent_Mod
             //the player can talk to npc today
             DecisionTreeNode canTalk = new Decision(
                 new Action($"Talk to {npcName}"),
-                Instance.completeAction,
+                completeAction,
                 new Decision.DecisionDelegate(CanTalk));
 
 
@@ -300,7 +304,7 @@ namespace Stardew_100_Percent_Mod
 
             //max friendship
             DecisionTreeNode maxFriendship = new Decision(
-                Instance.completeAction,
+                completeAction,
                 canGiveGift,
                 new Decision.DecisionDelegate(PlayerBestFriendsWithNPC), true);
 
@@ -355,7 +359,7 @@ namespace Stardew_100_Percent_Mod
 
             //Has the player crafted the item at least once?
             DecisionTreeNode craftedItem = new Decision(
-                Instance.completeAction,
+                completeAction,
                 hasItems,
                 PlayerHasCraftedRecipie,
                 true);
@@ -378,11 +382,16 @@ namespace Stardew_100_Percent_Mod
         /// <returns></returns>
         private static DecisionTreeNode CookItem(string name)
         {
+
+            #region Delegate Action
+            #endregion
+
+            #region Delegate Checks
             bool PlayerHasKitchen()
             {
                 FarmHouse farmhouse = (FarmHouse)Game1.locations.First(l => l.NameOrUniqueName == "FarmHouse");
                 Microsoft.Xna.Framework.Point fridgePoint = farmhouse.fridgePosition;
-                return fridgePoint == Microsoft.Xna.Framework.Point.Zero;
+                return fridgePoint != Microsoft.Xna.Framework.Point.Zero;
             }
 
             bool HasRequestedHouseUpgrade()
@@ -390,18 +399,31 @@ namespace Stardew_100_Percent_Mod
                 return Game1.player.daysUntilHouseUpgrade.Value != -1;
             }
 
-            //has the player requested a house upgrade?
-            Decision HasRequesetedHouseUpgrade = new Decision(new Action("Player has requsted house upgrade"),
-                                        new Action("Player has not requsted house upgrade"),
-                                        HasRequestedHouseUpgrade,
-                                        true);
+            bool HasMoneyForHouseUpgrade()
+            {
+                return Instance.HasDesiredMoney(10000);
+            }
+            #endregion
 
+
+            #region Tree
+
+            //does the player have enough money for the first house upgrade
+            Decision enoughMoney = new Decision(new Action("Player has 10k"),
+                                   Instance.getMoneyAction,
+                                   HasMoneyForHouseUpgrade);
+
+            //has the player requested a house upgrade?
+            Decision hasRequesetedHouseUpgrade = new Decision(completeAction,
+                                        enoughMoney,
+                                        HasRequestedHouseUpgrade);
 
             //does the player have a kitchen
             Decision playerHasKitchen = new Decision(new Action("Player has a kitchen"),
-                                        HasRequesetedHouseUpgrade, 
-                                        PlayerHasKitchen, 
+                                        hasRequesetedHouseUpgrade,
+                                        PlayerHasKitchen,
                                         true);
+            #endregion
 
             return playerHasKitchen;
         }
@@ -429,17 +451,44 @@ namespace Stardew_100_Percent_Mod
         }
 
 
+        #region Delegate Checks
+        
+        /// <summary>
+        /// Actions that says how much money the player should get
+        /// </summary>
+        /// <returns></returns>
+        private string GetDesiredMoneyAmount()
+        { 
+            return $"Get {requiredMoney - Game1.player.Money} gold" ;
+        }
+        #endregion
+
+        #region Delegate Actions
+        private bool HasDesiredMoney(int desiredAmount)
+        {
+            bool condition = reservedMoney >= desiredAmount;
+            UpdateReservedMoney(-desiredAmount);
+            return condition;
+        }
+
+        #endregion
+
+
+
         /// <summary>
         /// Combine Actions that tell the player to get the same item, but different amounts
         /// </summary>
         /// <param name="actions">The actions</param>
-        public List<Action> CombineItemActions(List<Action> actions)
+        private List<Action> CombineItemActions(List<Action> actions)
         { 
+            
             List<string> itemIds = new List<string>();
+            //the index the first GetItemAction of the same qualifiedItemId is found
 
-            //get all the ids of the GetItem actions
-            foreach(Action action in actions)
+            //get all the ids of the GetItem actions (and their index)
+            for (int i = 0; i < actions.Count; i++)
             {
+                Action action = actions[i];
                 if (action is GetItemAction)
                 {
                     string qualifiedItemId = ((GetItemAction)action).QualifiedItemId;
@@ -459,13 +508,21 @@ namespace Stardew_100_Percent_Mod
 
             return actions;
         }
+        
+        /// <summary>
+        /// Combines a list of duplicate actions into one
+        /// </summary>
+        /// <param name="actions">the original list of actions</param>
+        /// <returns>a new list of actions without duplicates</returns>
+        public List<Action> CombineActions(List<Action> actions)
+        {
+            actions = CombineItemActions(actions);
+            actions = CombineMoneyActions(actions);
+            return actions;
+        }
 
         public void UpdateRequiredItemsDictionary(string qualifiedItemId, int count)
         {
-            if(qualifiedItemId == "388")
-            {
-                logMethod("a");
-            }
             if (!requiredItemsDictionary.ContainsKey(qualifiedItemId))
             {
                 requiredItemsDictionary[qualifiedItemId] = count;
@@ -473,17 +530,14 @@ namespace Stardew_100_Percent_Mod
 
             else
             { 
-                requiredItemsDictionary[qualifiedItemId] = count;
+                requiredItemsDictionary[qualifiedItemId] += count;
             }
         }
 
+        
+
         public void UpdateReservedItemDicionary(string qualifiedItemId, int count)
         {
-            if (qualifiedItemId == "388")
-            {
-                logMethod("j");
-            }
-
             if (InventoryItemReserveDictonary.ContainsKey(qualifiedItemId))
             {
                 InventoryItemReserveDictonary[qualifiedItemId] += count;
@@ -499,18 +553,29 @@ namespace Stardew_100_Percent_Mod
 
         }
 
+        /// <summary>
+        /// Updates the money reserved and money required
+        /// </summary>
+        /// <param name="count">The amount of money that will be added to reserved money</param>
+        private void UpdateReservedMoney(int count)
+        {
+            //clamp to zero
+            requiredMoney = Math.Clamp(requiredMoney - count, 0, int.MaxValue);
+
+            //clamp to zero
+            reservedMoney = Math.Clamp(reservedMoney + count, 0, int.MaxValue);
+        }
+
         public void ResetItemDictionarys()
         {
+            requiredMoney = 0;
+            reservedMoney = Game1.player.Money;
             requiredItemsDictionary.Clear();
             InventoryItemReserveDictonary.Clear();
 
             //foreach item in the world, count the amount of it appears in the player's inventory
             Utility.ForEachItem(delegate (Item item)
             {
-                if (item.QualifiedItemId == "388")
-                {
-                    logMethod("j");
-                }
                 InventoryItemReserveDictonary[item.QualifiedItemId] = ItemLocator.PlayerItemCount(item.QualifiedItemId);
                 return true;
             });
@@ -537,6 +602,50 @@ namespace Stardew_100_Percent_Mod
             return;
         }
 
+
+        /// <summary>
+        /// Combine get money actions
+        /// </summary>
+        /// <param name="actions">the original list of actions</param>
+        /// <returns>A new list with the combined </returns>
+        private List<Action> CombineMoneyActions(List<Action> actions)
+        { 
+            List<Action> newList = new List<Action>();
+
+            //if the count of GetMoneyAction is 0 or 1, return the original list as the new list will be the same
+            if(actions.Count(a => a is GetMoneyAction) < 2)
+            {
+                return actions;
+            }
+
+            //the total amount of money required
+            int moneyRequired = 0;
+
+            //the index of the first GetMoneyAction object 
+            int index = -1;
+
+            for (int i = 0; i < actions.Count; i++)
+            {
+                Action action = actions[i];
+                if (action is GetMoneyAction)
+                {
+                    moneyRequired += ((GetMoneyAction)action).MoneyRequired;
+                    if (index == -1)
+                    {
+                        index = i;
+                    }
+                }
+
+                else
+                {
+                    newList.Add(action);
+                }
+            }
+
+            newList.Insert(index, new GetMoneyAction(GetDesiredMoneyAmount));
+
+            return newList;
+        }
 
 
         /// <summary>

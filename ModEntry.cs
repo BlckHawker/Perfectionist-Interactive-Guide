@@ -1,22 +1,8 @@
 ﻿using StardewModdingAPI.Events;
 using StardewModdingAPI;
 using StardewValley;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework;
-using StardewValley.Internal;
-using StardewValley.Menus;
-using Netcode;
-using StardewValley.Network;
-using StardewValley.Objects;
-using StardewValley.GameData.Characters;
-using static Stardew_100_Percent_Mod.NPCManager;
-using StardewValley.GameData;
 using System.Diagnostics;
-using StardewValley.Locations;
+using Stardew_100_Percent_Mod.Decision_Trees;
 
 namespace Stardew_100_Percent_Mod
 {
@@ -66,16 +52,12 @@ namespace Stardew_100_Percent_Mod
             TaskManager.Instance.ResetItemDictionarys();
 
             //Go through the decsion tree and check what the desired action is
-            //List<Action> actions = TaskManager.Instance.roots.Select(root => (Action)root.MakeDecision() ).ToList();
-
-            List<Action> actions = new List<Action>();
-            FarmHouse farmhouse = (FarmHouse)Game1.locations.First(l => l.NameOrUniqueName == "FarmHouse");
-            Point fridgePoint = farmhouse.fridgePosition;
-            
-            actions = TaskManager.Instance.CombineItemActions(actions);
+            List<Action> actions = TaskManager.Instance.roots.Select(root => (Action)root.MakeDecision() ).ToList();
             actions.Insert(0, new Action(framerate));
-            Menu.SetTasks(actions);
 
+            actions = TaskManager.Instance.CombineActions(actions);
+
+            Menu.SetTasks(actions);
         }
 
         private void OnRenderedHud(object? sender, RenderedHudEventArgs e) 
