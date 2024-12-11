@@ -3,11 +3,7 @@ using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Locations;
 using StardewValley.Objects;
-using System;
-using System.Reflection.Emit;
-using System.Runtime.InteropServices;
 using static Stardew_100_Percent_Mod.NPCManager;
-using static System.Collections.Specialized.BitVector32;
 
 namespace Stardew_100_Percent_Mod
 {
@@ -61,10 +57,14 @@ namespace Stardew_100_Percent_Mod
 
         //List of all of the custom crafting recipes (see class defintion to see reason why it exists)
         private List<DummyCraftingRecipe> dummyCraftingRecipes;
+        private List<DummyCookingRecipe> dummyCookingRecipes;
+
 
         public enum ItemName
         {
             CopperBar,
+            Egg,
+            Milk,
             ParsnipSeeds,
             Wood
         }
@@ -88,12 +88,15 @@ namespace Stardew_100_Percent_Mod
             Instance.ItemIds = new Dictionary<ItemName, string>()
             {
                 { ItemName.CopperBar, "(O)344"},
+                { ItemName.Egg, "(O)176"},
+                { ItemName.Milk, "(O)184"},
                 { ItemName.ParsnipSeeds, "(O)472"},
                 { ItemName.Wood, "(O)388"},
 
             };
 
             Instance.dummyCraftingRecipes = DummyCraftingRecipe.GetAllRecipes();
+            Instance.dummyCookingRecipes = DummyCookingRecipe.GetAllRecipes();
 
             Instance.dummyItems = new List<DummyItem>();
 
@@ -106,13 +109,13 @@ namespace Stardew_100_Percent_Mod
 
             DecisionTreeNode becomeFriendsWithJas = BecomeFriendsWithNPC("Jas");
 
-            DecisionTreeNode craftChest = CraftItem("Chest");
+            DecisionTreeNode craftChest = CraftItem("Chest", false);
 
-            DecisionTreeNode cookOmelet = CookItem("Omelet");
+            DecisionTreeNode cookOmelet = CraftItem("Omelet", true);
 
             //Instance.roots = new List<DecisionTreeNode>();
 
-            Instance.roots = new List<DecisionTreeNode>(new[] { cookOmelet, cookOmelet });
+            Instance.roots = new List<DecisionTreeNode>(new[] { cookOmelet });
 
             //Instance.roots = new List<DecisionTreeNode>(new[] { craftChest, parsnipSeedsTree, becomeFriendsWithJas });
         }
@@ -332,70 +335,25 @@ namespace Stardew_100_Percent_Mod
         /// Get the branch to craft an item
         /// </summary>
         /// <param name="name">the name of the item that the player would like to craft</param>
+        /// <param name="cooking">If the recipie is a cooking recipe. Otherwise it's a crafting recipe</param>
         /// <returns></returns>
-        private static DecisionTreeNode CraftItem(string name)
+        private static DecisionTreeNode CraftItem(string name, bool cooking)
         {
-            ///when the actions is reached, remove items from inventory reserve
             CraftingRecipe recipe = new CraftingRecipe(name);
-            DummyCraftingRecipe dummyRecipe = Instance.dummyCraftingRecipes.First(r => r.Name == name);
+            DummyRecipe dummyRecipe;
+            
+            if (cooking)
+            {
+                dummyRecipe = Instance.dummyCookingRecipes.First(r => r.Name == name);
+            }
+            else
+            { 
+                dummyRecipe = Instance.dummyCraftingRecipes.First(r => r.Name == name);
+            }
+
             #region Delegate Actions
 
             #endregion
-            #region Delegate Checks
-            bool PlayerKnowsRecipe()
-            {
-                return Game1.player.knowsRecipe(name);
-            }
-
-            bool PlayerHasCraftedRecipie()
-            {
-                return new CraftingRecipe(name).timesCrafted > 0;
-            }
-
-            bool PlayerHasRequiredItems()
-            {
-                return Instance.GetRecipeMissingItems(dummyRecipe).Count == 0;
-            }
-
-            #endregion
-
-            #region Tree
-
-            //Does player have the required items to create the item in their inventory
-            DecisionTreeNode hasItems = new Decision(
-                new Action($"Craft {name}"),
-                new CraftItemAction(recipe),
-                PlayerHasRequiredItems);
-
-            //Has the player crafted the item at least once?
-            DecisionTreeNode craftedItem = new Decision(
-                completeAction,
-                hasItems,
-                PlayerHasCraftedRecipie,
-                true);
-
-            //does the player know the recipe
-            DecisionTreeNode knowRecipe = new Decision(
-                craftedItem,
-                new Action($"Learn {name} recipe"),
-                PlayerKnowsRecipe,
-                true);
-            #endregion
-
-            return knowRecipe;
-        }
-
-        /// <summary>
-        /// Get the branch to cook an item
-        /// </summary>
-        /// <param name="name">the name of the recipe to be cooked</param>
-        /// <returns></returns>
-        private static DecisionTreeNode CookItem(string name)
-        {
-
-            #region Delegate Action
-            #endregion
-
             #region Delegate Checks
             bool PlayerHasKitchen()
             {
@@ -413,11 +371,45 @@ namespace Stardew_100_Percent_Mod
             {
                 return Instance.HasDesiredMoney(10000);
             }
-            #endregion
 
+            bool PlayerKnowsRecipe()
+            {
+                return Instance.PlayerKnowsRecipe(name);
+            }
+
+            bool PlayerHasCraftedRecipie()
+            {
+                return Instance.PlayerHasCraftedRecipie(dummyRecipe, cooking);
+            }
+
+            bool PlayerHasRequiredItems()
+            {
+                return Instance.PlayerHasRequiredItems(dummyRecipe);
+            }
+
+            #endregion
 
             #region Tree
 
+            //Does player have the required items to create the item in their inventory
+            DecisionTreeNode hasItems = new Decision(
+                new Action($"Craft {name}"),
+                new CraftItemAction(recipe, cooking),
+                PlayerHasRequiredItems);
+
+            //Has the player crafted the item at least once?
+            DecisionTreeNode craftedItem = new Decision(
+                completeAction,
+                hasItems,
+                PlayerHasCraftedRecipie,
+                true);
+
+            //does the player know the recipe
+            DecisionTreeNode knowRecipe = new Decision(
+                craftedItem,
+                new Action($"Learn {name} recipe"),
+                PlayerKnowsRecipe,
+                true);
 
             //does the player have 450 wood? If they do, tell them to get the kitchen upgrade from Robin
             DecisionTreeNode playerHasWood = GetProducableItemTree(Instance.ItemIds[ItemName.Wood], 450, new Action("Get kitchen upgrade from Robin"));
@@ -433,13 +425,13 @@ namespace Stardew_100_Percent_Mod
                                         HasRequestedHouseUpgrade);
 
             //does the player have a kitchen
-            Decision playerHasKitchen = new Decision(new Action("Player has a kitchen"),
+            Decision playerHasKitchen = new Decision(knowRecipe,
                                         hasRequesetedHouseUpgrade,
                                         PlayerHasKitchen,
                                         true);
             #endregion
 
-            return playerHasKitchen;
+            return cooking ? playerHasKitchen : knowRecipe;
         }
 
         /// <summary>
@@ -447,7 +439,7 @@ namespace Stardew_100_Percent_Mod
         /// </summary>
         /// <param name="recipe">the deisred recipie to craft</param>
         /// <returns>A list of the qualified item ids of the missing items. Empty if the user has enough of all the items</returns>
-        public List<string> GetRecipeMissingItems(DummyCraftingRecipe recipe)
+        public List<string> GetRecipeMissingItems(DummyRecipe recipe)
         {
             List<string> missingItems = new List<string>();
 
@@ -485,9 +477,28 @@ namespace Stardew_100_Percent_Mod
             return condition;
         }
 
+        bool PlayerKnowsRecipe(string name)
+        {
+            return Game1.player.knowsRecipe(name);
+        }
+
+        bool PlayerHasCraftedRecipie(DummyRecipe recipe, bool cooking)
+        {
+            if (cooking)
+            { 
+                Game1.player.recipesCooked.TryGetValue(((DummyCookingRecipe)recipe).UnqualifiedItemId, out int timesCrafted);
+                return timesCrafted > 0;
+            }
+
+            return new CraftingRecipe(recipe.Name).timesCrafted > 0;
+        }
+
+        bool PlayerHasRequiredItems(DummyRecipe dummyRecipe)
+        {
+            return Instance.GetRecipeMissingItems(dummyRecipe).Count == 0;
+        }
+
         #endregion
-
-
 
         /// <summary>
         /// Combine Actions that tell the player to get the same item, but different amounts

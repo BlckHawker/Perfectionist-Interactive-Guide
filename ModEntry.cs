@@ -54,7 +54,6 @@ namespace Stardew_100_Percent_Mod
             //Go through the decsion tree and check what the desired action is
             List<Action> actions = TaskManager.Instance.roots.Select(root => (Action)root.MakeDecision() ).ToList();
             actions.Insert(0, new Action(framerate));
-
             actions = TaskManager.Instance.CombineActions(actions);
 
             Menu.SetTasks(actions);

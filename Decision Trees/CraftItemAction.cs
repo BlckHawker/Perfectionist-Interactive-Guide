@@ -12,10 +12,22 @@ namespace Stardew_100_Percent_Mod.Decision_Trees
     /// </summary>
     internal class CraftItemAction : DecisionTreeNode
     {
-        private DummyCraftingRecipe recipe;
-        public CraftItemAction(CraftingRecipe recipe)
+        private DummyRecipe recipe;
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="recipe">The recipe we are trying to make</param>
+        /// <param name="cooking">if the recipe is a cooking item</param>
+        public CraftItemAction(CraftingRecipe recipe, bool cooking)
         {
-            this.recipe = DummyCraftingRecipe.GetAllRecipes().First(r => r.Name == recipe.DisplayName);
+            if (cooking)
+            {
+                this.recipe = DummyCookingRecipe.GetAllRecipes().First(r => r.Name == recipe.DisplayName);
+            }
+            else
+            { 
+                this.recipe = DummyCraftingRecipe.GetAllRecipes().First(r => r.Name == recipe.DisplayName);
+            }
         }
 
 
