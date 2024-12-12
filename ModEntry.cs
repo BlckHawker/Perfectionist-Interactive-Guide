@@ -59,12 +59,18 @@ namespace Stardew_100_Percent_Mod
             actions.Insert(0, new Action(framerate));
             actions = TaskManager.Instance.CombineActions(actions);
 
+
             //check if the player has a shed on the farm
-            Farm farmHouse = (Farm)Game1.locations.First(l => l.NameOrUniqueName == "Farm");
-            actions.Add(new Action($"Shed construction in progress: unknown"));
-            actions.Add(new Action($"Shed count: {farmHouse.buildings.Count(b => b.GetType() == typeof(Shed))}"));
-            actions.Add(new Action($"Big Shed construction in progress: unknown"));
-            actions.Add(new Action($"Big Shed count: unknown"));
+            Farm farm = (Farm)Game1.locations.First(l => l.NameOrUniqueName == "Farm");
+            IEnumerable<Building> sheds = farm.buildings.Where(b => b.buildingType.Value == "Shed");
+            IEnumerable<Building> bigSheds = farm.buildings.Where(b => b.buildingType.Value == "Big Shed");
+
+
+            actions.Add(new Action($"Shed under construction: {sheds.Any(s => s.daysOfConstructionLeft.Value > 0)}"));
+            actions.Add(new Action($"Built shed count: {sheds.Count(s => s.daysOfConstructionLeft.Value < 1)}"));
+            //these two do not working
+            actions.Add(new Action($"Big Shed construction in progress: {bigSheds.Any(s => s.daysOfConstructionLeft.Value > 0)}"));
+            actions.Add(new Action($"Big Shed count: {bigSheds.Count(s => s.daysOfConstructionLeft.Value < 1)}"));
 
 
 
