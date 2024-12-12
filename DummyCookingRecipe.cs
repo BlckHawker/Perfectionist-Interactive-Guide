@@ -1,4 +1,5 @@
 ﻿using StardewValley;
+using StardewValley.Tools;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +15,7 @@ namespace Stardew_100_Percent_Mod
     internal class DummyCookingRecipe : DummyRecipe
     {
         public string UnqualifiedItemId { get; private set; }
-        DummyCookingRecipe(string name, Dictionary<string, int> recipeList) : base(name, recipeList) 
+        DummyCookingRecipe(string name, List<Dictionary<string, int>> recipeLists) : base(name, recipeLists) 
         {
             UnqualifiedItemId = new CraftingRecipe(name).getIndexOfMenuView();
         }
@@ -25,11 +26,23 @@ namespace Stardew_100_Percent_Mod
         /// <returns></returns>
         public static List<DummyCookingRecipe> GetAllRecipes()
         {
-            TaskManager tm = TaskManager.Instance;
+            TaskManager tm = Instance;
+
+            Dictionary<string, int> eggsDictionary = tm.EggList.ToDictionary(e => tm.ItemIds[e], e => 1);
+            Dictionary<string, int> milkDictionary = tm.MilkList.ToDictionary(e => tm.ItemIds[e], e => 1);
+
+
+            List<Dictionary<string, int>> omeletList = new List<Dictionary<string, int>>
+            {
+                //1 egg (any)
+                eggsDictionary,
+                //1 milk(any)
+                milkDictionary
+            };
+
             return new List<DummyCookingRecipe>()
             {
-                //1 egg, 1 milk
-                { new DummyCookingRecipe("Omelet", new Dictionary<string, int>() { { tm.ItemIds[ItemName.Egg], 1 }, { tm.ItemIds[ItemName.Milk], 1 }  }) },
+                { new DummyCookingRecipe("Omelet", omeletList )}
             };
 
         }

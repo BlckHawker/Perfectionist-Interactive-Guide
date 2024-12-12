@@ -1,8 +1,11 @@
 ﻿using Stardew_100_Percent_Mod.Decision_Trees;
 using StardewModdingAPI;
 using StardewValley;
+using StardewValley.Buildings;
 using StardewValley.Locations;
 using StardewValley.Objects;
+using StardewValley.Objects.Trinkets;
+using System;
 using static Stardew_100_Percent_Mod.NPCManager;
 
 namespace Stardew_100_Percent_Mod
@@ -62,17 +65,35 @@ namespace Stardew_100_Percent_Mod
 
         public enum ItemName
         {
+            BrownEgg,
+            BrownLargeEgg,
+            DuckEgg,
             CopperBar,
             Egg,
+            GoatMilk,
+            LargeEgg,
+            LargeGoatMilk,
+            LargeMilk,
             Milk,
+            OstritchEgg,
             ParsnipSeeds,
+            VoidEgg,
             Wood
         }
 
+        //all of the eggs that are considered eggs for a cooking recipe
+        public readonly List<ItemName> EggList = new List<ItemName>() { ItemName.Egg, ItemName.BrownEgg, ItemName.BrownLargeEgg, 
+                                                                ItemName.DuckEgg, ItemName.LargeEgg, ItemName.OstritchEgg, ItemName.VoidEgg };
+        //all of the milks that are considered milk for a cooking recipe
+        public readonly List<ItemName> MilkList = new List<ItemName>() { ItemName.Milk, ItemName.GoatMilk, ItemName.LargeMilk, ItemName.LargeGoatMilk };
+
         public TaskManager()
         {
-
         }
+
+        
+
+       
 
         public static void InitalizeInstance(LogMethod logMethod)
         {
@@ -85,15 +106,36 @@ namespace Stardew_100_Percent_Mod
 
             Instance.getMoneyAction = new GetMoneyAction(Instance.GetDesiredMoneyAmount);
 
+  
             Instance.ItemIds = new Dictionary<ItemName, string>()
             {
+                { ItemName.BrownEgg, "(O)180"},
+                { ItemName.BrownLargeEgg, "(O)182"},
                 { ItemName.CopperBar, "(O)344"},
+                { ItemName.DuckEgg, "(O)442"},
                 { ItemName.Egg, "(O)176"},
+                { ItemName.GoatMilk, "(O)436"},
+                { ItemName.LargeEgg, "(O)174"},
+                { ItemName.LargeGoatMilk, "(O)438" },
+                { ItemName.LargeMilk, "(O)186"},
                 { ItemName.Milk, "(O)184"},
+                { ItemName.OstritchEgg, "(O)289"},
                 { ItemName.ParsnipSeeds, "(O)472"},
                 { ItemName.Wood, "(O)388"},
-
+                { ItemName.VoidEgg, "(O)305" }
             };
+
+            //check if any ItemName keys are missing in ItemIds
+            List<ItemName> missingItemIds = Enumerable.Range(0, Enum.GetNames(typeof(ItemName)).Length)
+                .Where(i => !Instance.ItemIds.ContainsKey((ItemName)i))
+                .Select(i => (ItemName)i).ToList();
+            
+
+
+            if(missingItemIds.Count > 0)
+            {
+                throw new Exception($"The following keys are missing in \"ItemIds\": {string.Join(", ", missingItemIds)}");
+            }
 
             Instance.dummyCraftingRecipes = DummyCraftingRecipe.GetAllRecipes();
             Instance.dummyCookingRecipes = DummyCookingRecipe.GetAllRecipes();
@@ -105,7 +147,7 @@ namespace Stardew_100_Percent_Mod
                 Instance.dummyItems.Add(GetDummyItem(k));
             }
 
-            DecisionTreeNode parsnipSeedsTree = GetProducableItemTree(Instance.ItemIds[ItemName.ParsnipSeeds], 15);
+            DecisionTreeNode parsnipSeedsTree = GetProducableItemTree(ItemName.ParsnipSeeds, 15);
 
             DecisionTreeNode becomeFriendsWithJas = BecomeFriendsWithNPC("Jas");
 
@@ -114,6 +156,9 @@ namespace Stardew_100_Percent_Mod
             DecisionTreeNode cookOmelet = CraftItem("Omelet", true);
 
             Instance.roots = new List<DecisionTreeNode>();
+
+
+            Instance.roots  = new List<DecisionTreeNode>() { GetMissingRecipeIngrediants("Omelet") };
 
             //Instance.roots = new List<DecisionTreeNode>(new[] { cookOmelet, craftChest, parsnipSeedsTree, becomeFriendsWithJas });
         }
@@ -129,13 +174,114 @@ namespace Stardew_100_Percent_Mod
             return new DummyItem(kv.Value, kv.Key.ToString());
         }
 
-
         /// <summary>
-        /// Helper method that will get all of the nodes that will check if the player
-        /// has the desired item throughout the entire world
+        /// Get a tree branch of how to get the missing ingrediants for a recipe
         /// </summary>
-        /// <returns>The root node of the tree that will check for parsnips</returns>
-       
+        /// <param name="recipeName">the name of a recipe</param>
+        /// <returns></returns>
+        private static DecisionTreeNode GetMissingRecipeIngrediants(string recipeName)
+        {
+            DecisionTreeNode root = null;
+
+            switch (recipeName)
+            {
+                case "Omelet":
+                    //I don't like how boilerplate this is, there has to be a better way
+                    int desiredEggCount = 1;
+
+                    bool HasOstritchEgg()
+                    {
+                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.OstritchEgg], desiredEggCount);
+                    }
+
+                    bool HasVoidEgg()
+                    {
+                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.VoidEgg], desiredEggCount);
+                    }
+
+
+                    bool HasDuckEgg()
+                    {
+                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.DuckEgg], desiredEggCount);
+                    }
+
+                    bool HasBrownLargeEgg()
+                    { 
+                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.BrownLargeEgg], desiredEggCount);
+                    }
+
+                    bool HasLargeEgg()
+                    {
+                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.LargeEgg], desiredEggCount);
+                    }
+
+                    bool HasBrownEgg()
+                    {
+                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.BrownEgg], desiredEggCount);
+                    }
+
+                    bool HasEgg()
+                    {
+                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.Egg], desiredEggCount);
+                    }
+
+                    //the reason why GetItemNode is set up when the check is complete rather than the start of the branch is because
+                    //we don't want the required amount of an egg to be doubled if we need to get it. GetProducible item has this check already, but it's not 
+                    //garunteed to hit that check if the player already has the eggs
+                    GetItemNode GetItemNode(ItemName itemName)
+                    {
+                        string eggId = Instance.ItemIds[itemName];
+                        return new GetItemNode(new Action($"Player has {desiredEggCount} {Instance.dummyItems.First(i => i.QualifiedItemId == eggId).DisplayName}"), eggId, desiredEggCount);
+                    }
+
+                    //player has large egg
+                    DecisionTreeNode ostritchEggCheck = new Decision(GetItemNode(ItemName.OstritchEgg),
+                                                        GetProducableItemTree(ItemName.Egg, desiredEggCount),
+                                                        HasOstritchEgg);
+
+                    //player has large egg
+                    DecisionTreeNode voidEggCheck = new Decision(GetItemNode(ItemName.VoidEgg),
+                                                        ostritchEggCheck,
+                                                        HasVoidEgg);
+
+                    //player has large egg
+                    DecisionTreeNode duckEggCheck = new Decision(GetItemNode(ItemName.DuckEgg),
+                                                        voidEggCheck,
+                                                        HasDuckEgg);
+
+                    //player has brown large egg
+                    DecisionTreeNode brownLargeEggCheck = new Decision(GetItemNode(ItemName.BrownLargeEgg),
+                                                        duckEggCheck,
+                                                        HasBrownLargeEgg);
+
+                    //player has large egg
+                    DecisionTreeNode largeEggCheck = new Decision(GetItemNode(ItemName.LargeEgg),
+                                                        brownLargeEggCheck,
+                                                        HasLargeEgg);
+
+                    //player has brown egg 
+                    DecisionTreeNode brownEggCheck = new Decision(GetItemNode(ItemName.BrownEgg),
+                                                        largeEggCheck,
+                                                        HasBrownEgg);
+
+                    //player has (white) eggs
+                    DecisionTreeNode eggCheck = new Decision(GetItemNode(ItemName.Egg),
+                                                        brownEggCheck,
+                                                        HasEgg);
+
+                    
+
+
+                    //get the milk
+                    DecisionTreeNode getMilk;
+
+                    root = eggCheck;
+                    break;
+            }
+
+            return root;
+
+        }
 
         /// <summary>
         /// Tree branch that will tell the user how to get a specific item in the game
@@ -189,13 +335,13 @@ namespace Stardew_100_Percent_Mod
             }
 
             //Check how many {item} are in the FarmHouse and tells the plyaer to get them
-            string GetParsnipSeedCountFromFarmHouse()
+            string GetItemCountFromFarmHouse()
             {
                 return GetItemCountFromLocation("FarmHouse");
             }
 
             //Check how many {item} are in the Farm and tells the plyaer to get them
-            string GetParsnipSeedCountFromFarm()
+            string GetItemCountFromFarm()
             {
                 return GetItemCountFromLocation("Farm");
             }
@@ -211,13 +357,13 @@ namespace Stardew_100_Percent_Mod
             }
 
             //The farm has the desired item
-            bool FarmHasParsnipSeeds()
+            bool FarmHasItem()
             {
                 return LocationHasItem("Farm");
             }
 
             //The farm house has the desired item
-            bool FarmHouseHasParsnipSeeds()
+            bool FarmHouseHasItem()
             {
                 return LocationHasItem("FarmHouse");
             }
@@ -226,10 +372,7 @@ namespace Stardew_100_Percent_Mod
             bool PlayerHasDesieredAmountOfItem()
             {
                 //check if found in the player's ivnentory
-                Instance.InventoryItemReserveDictonary.TryGetValue(qualifiedItemId, out int itemCount);
-                Instance.UpdateReservedItemDicionary(qualifiedItemId, -desiredAmount);
-                bool conditon = itemCount >= desiredAmount;
-                return conditon;
+                return Instance.PlayerHasDesieredAmountOfItem(qualifiedItemId, desiredAmount);
             }
 
             #endregion
@@ -237,17 +380,17 @@ namespace Stardew_100_Percent_Mod
             #endregion
 
             #region Tree
-            //there is at least one loction where the player has parsnip seeds to in the farm
+            //there is at least one loction where the player has item to in the farm
             Decision playerHasItemOnFarm = new Decision(
-                new GetItemAction(qualifiedItemId, GetParsnipSeedCountFromFarm),
+                new GetItemAction(qualifiedItemId, GetItemCountFromFarm),
                 new GetItemAction(qualifiedItemId, GetItemFromStore),
-                new Decision.DecisionDelegate(FarmHasParsnipSeeds));
+                new Decision.DecisionDelegate(FarmHasItem));
 
-            //there is at least one loction where the player has parsnip seeds to in the farm house
+            //there is at least one loction where the player has item to in the farm house
             Decision playerHasItemOnFarmHouse = new Decision(
-                new GetItemAction(qualifiedItemId, GetParsnipSeedCountFromFarmHouse),
+                new GetItemAction(qualifiedItemId, GetItemCountFromFarmHouse),
                 playerHasItemOnFarm,
-                new Decision.DecisionDelegate(FarmHouseHasParsnipSeeds));
+                new Decision.DecisionDelegate(FarmHouseHasItem));
 
             //the player has {desiredAmount} {item} on them
             Decision playerHasItemInInventory = new Decision(
@@ -255,10 +398,20 @@ namespace Stardew_100_Percent_Mod
                 playerHasItemOnFarmHouse,
                 new Decision.DecisionDelegate(PlayerHasDesieredAmountOfItem));
 
-            return new Root(playerHasItemInInventory, qualifiedItemId, desiredAmount);
+            return new GetItemNode(playerHasItemInInventory, qualifiedItemId, desiredAmount);
             #endregion
         }
 
+        /// <summary>
+        /// Tree branch that will tell the user how to get a specific item in the game
+        /// </summary>
+        /// <param name="itemName">the name of the item</param>
+        /// <param name="desiredAmount">the amount of the item that would like to be aquired</param>
+        /// <param name="actionAfterward">if something should be done after the amount of the item is found</param>
+        public static DecisionTreeNode GetProducableItemTree(ItemName itemName, int desiredAmount, DecisionTreeNode? actionAfterward = null)
+        {
+            return GetProducableItemTree(Instance.ItemIds[itemName], desiredAmount, actionAfterward);
+        }
         /// <summary>
         /// Get the branch to become friends with Sebestian
         /// </summary>
@@ -410,7 +563,7 @@ namespace Stardew_100_Percent_Mod
                 true);
 
             //does the player have 450 wood? If they do, tell them to get the kitchen upgrade from Robin
-            DecisionTreeNode playerHasWood = GetProducableItemTree(Instance.ItemIds[ItemName.Wood], 450, new Action("Get kitchen upgrade from Robin"));
+            DecisionTreeNode playerHasWood = GetProducableItemTree(ItemName.Wood, 450, new Action("Get kitchen upgrade from Robin"));
 
             //does the player have enough money for the first house upgrade
             Decision enoughMoney = new Decision(playerHasWood,
@@ -439,19 +592,33 @@ namespace Stardew_100_Percent_Mod
         /// <returns>A list of the qualified item ids of the missing items. Empty if the user has enough of all the items</returns>
         public List<string> GetRecipeMissingItems(DummyRecipe recipe)
         {
-            List<string> missingItems = new List<string>();
+            List<string> missingItemsIds = new List<string>();
 
-            foreach (KeyValuePair<string, int> kv in recipe.RecipeList)
+            foreach (Dictionary<string, int> list in recipe.RecipeLists)
             {
+                //for each list in recipe list, check if the player has the desired amount for at least one item in the list
+                bool metCondition = false;
 
-                Instance.InventoryItemReserveDictonary.TryGetValue(kv.Key, out int inventoryCount);
-                if (inventoryCount < kv.Value)
+                foreach (KeyValuePair<string, int> kv in list)
                 {
-                    missingItems.Add(kv.Key);
+                    Instance.InventoryItemReserveDictonary.TryGetValue(kv.Key, out int inventoryCount);
+                    if (inventoryCount >= kv.Value)
+                    {
+                        metCondition = true;
+                        break;
+                    }
                 }
+
+                //If this is false, add the first item in the list to missing items
+                if (!metCondition)
+                {
+                    missingItemsIds.Add(list.ElementAt(0).Key);
+                    continue;
+                }
+
             }
 
-            return missingItems;
+            return missingItemsIds;
         }
 
 
@@ -464,6 +631,19 @@ namespace Stardew_100_Percent_Mod
         private string GetDesiredMoneyAmount()
         { 
             return $"Get {requiredMoney - Game1.player.Money} gold" ;
+        }
+
+        /// <summary>
+        /// Tells if the player has at least the desired amount of an item
+        /// </summary>
+        /// <param name="qualifiedItemId">the id the item</param>
+        /// <param name="desiredAmount">the amount that is wanted</param>
+        /// <returns></returns>
+        private bool PlayerHasDesieredAmountOfItem(string qualifiedItemId, int desiredAmount)
+        {
+            Instance.InventoryItemReserveDictonary.TryGetValue(qualifiedItemId, out int itemCount);
+            Instance.UpdateReservedItemDicionary(qualifiedItemId, -desiredAmount);
+            return itemCount >= desiredAmount;
         }
         #endregion
 

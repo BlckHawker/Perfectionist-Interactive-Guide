@@ -179,7 +179,6 @@ namespace Stardew_100_Percent_Mod
             return null;
         }
 
-
         /// <summary>
         /// Checks if there are any chests with the a specifc item
         /// </summary>

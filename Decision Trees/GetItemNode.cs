@@ -7,13 +7,16 @@ using System.Threading.Tasks;
 
 namespace Stardew_100_Percent_Mod.Decision_Trees
 {
-    internal class Root : DecisionTreeNode
+    /// <summary>
+    /// Used as a starting place when the player needs to get an item. Updates the RequiredItemsDictionary
+    /// </summary>
+    internal class GetItemNode : DecisionTreeNode
     {
-        private DecisionTreeNode nextNode;
-        private string qualifiedItemId;
-        private int desiredCount;
+        private readonly DecisionTreeNode nextNode;
+        private readonly string qualifiedItemId;
+        private readonly int desiredCount;
 
-        public Root(DecisionTreeNode nextNode, string qualifiedItemId, int desiredCount) 
+        public GetItemNode(DecisionTreeNode nextNode, string qualifiedItemId, int desiredCount) 
         {
             this.nextNode = nextNode;
             this.qualifiedItemId = qualifiedItemId;

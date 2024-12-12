@@ -41,7 +41,10 @@ namespace Stardew_100_Percent_Mod.Decision_Trees
             //it's garunteed that the list is not empty. Otherwise this Action would have not been created
             string id = TaskManager.Instance.GetRecipeMissingItems(recipe)[0];
 
-            return TaskManager.GetProducableItemTree(id, recipe.RecipeList[id]).MakeDecision();
+            //get the first dicttionary that has the item id
+            var dictoionary = recipe.RecipeLists.First(d => d.ContainsKey(id));
+
+            return TaskManager.GetProducableItemTree(id, dictoionary[id]).MakeDecision();
         }
     }
 }

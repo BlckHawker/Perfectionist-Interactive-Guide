@@ -37,6 +37,8 @@ namespace Stardew_100_Percent_Mod
             this.permanent = permanent;
         }
 
+        public Decision(DecisionDelegate checkTask, bool permanent = false) : this(null, null, checkTask, permanent) { }
+
         //Perform the test
         private DecisionTreeNode GetBranch()
         {
@@ -55,6 +57,16 @@ namespace Stardew_100_Percent_Mod
             //Make the decision and recurse based on the result.
             DecisionTreeNode branch = GetBranch();
             return branch.MakeDecision();
+        }
+
+        public void SetTrueNode(DecisionTreeNode trueNode)
+        {
+            this.trueNode = trueNode;
+        }
+
+        public void SetFalseNode(DecisionTreeNode falseNode)
+        {
+            this.falseNode = falseNode;
         }
     }
 }
