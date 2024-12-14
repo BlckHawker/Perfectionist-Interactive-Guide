@@ -6,6 +6,7 @@ using StardewValley.Locations;
 using StardewValley.Objects;
 using StardewValley.Objects.Trinkets;
 using System;
+using System.Linq;
 using static Stardew_100_Percent_Mod.NPCManager;
 
 namespace Stardew_100_Percent_Mod
@@ -73,6 +74,7 @@ namespace Stardew_100_Percent_Mod
             CopperBar,
             Egg,
             GoatMilk,
+            GoldenEgg,
             LargeEgg,
             LargeGoatMilk,
             LargeMilk,
@@ -83,19 +85,18 @@ namespace Stardew_100_Percent_Mod
             Wood
         }
 
+        //All item of the following item names lists are ordered by easiest to hardest to get
+
         //all of the eggs that are considered eggs for a cooking recipe
-        public readonly List<ItemName> EggList = new List<ItemName>() { ItemName.Egg, ItemName.BrownEgg, ItemName.BrownLargeEgg, 
-                                                                ItemName.DuckEgg, ItemName.LargeEgg, ItemName.OstritchEgg, ItemName.VoidEgg };
+        public readonly List<ItemName> EggList = new List<ItemName>() { ItemName.Egg, ItemName.BrownEgg, ItemName.LargeEgg, ItemName.BrownLargeEgg, 
+                                                                ItemName.DuckEgg, ItemName.VoidEgg, ItemName.OstritchEgg, ItemName.GoldenEgg  };
         //all of the milks that are considered milk for a cooking recipe
         public readonly List<ItemName> MilkList = new List<ItemName>() { ItemName.Milk, ItemName.GoatMilk, ItemName.LargeMilk, ItemName.LargeGoatMilk };
 
         public TaskManager()
         {
+
         }
-
-        
-
-       
 
         public static void InitalizeInstance(LogMethod logMethod)
         {
@@ -117,6 +118,7 @@ namespace Stardew_100_Percent_Mod
                 { ItemName.DuckEgg, "(O)442"},
                 { ItemName.Egg, "(O)176"},
                 { ItemName.GoatMilk, "(O)436"},
+                { ItemName.GoldenEgg, "(O)928"},
                 { ItemName.LargeEgg, "(O)174"},
                 { ItemName.LargeGoatMilk, "(O)438" },
                 { ItemName.LargeMilk, "(O)186"},
@@ -160,7 +162,10 @@ namespace Stardew_100_Percent_Mod
             Instance.roots = new List<DecisionTreeNode>();
 
 
-            Instance.roots  = new List<DecisionTreeNode>() { cookOmelet };
+            //Instance.roots  = new List<DecisionTreeNode>() { cookOmelet };
+
+
+            Instance.roots  = new List<DecisionTreeNode>() { GetMissingRecipeIngrediants("Omelet") };
 
             //Instance.roots = new List<DecisionTreeNode>(new[] { cookOmelet, craftChest, parsnipSeedsTree, becomeFriendsWithJas });
         }
@@ -180,157 +185,68 @@ namespace Stardew_100_Percent_Mod
         /// Get a tree branch of how to get the missing ingrediants for a recipe
         /// </summary>
         /// <param name="recipeName">the name of a recipe</param>
-        /// <param name="actionAfterward">if something should be done after the amount of the item is found</param>
         /// <returns></returns>
-        private static DecisionTreeNode GetMissingRecipeIngrediants(string recipeName, DecisionTreeNode actionAfterward = null)
+        private static DecisionTreeNode GetMissingRecipeIngrediants(string recipeName)
         {
             DecisionTreeNode root = null;
-
-            //the reason why GetItemNode is set up when the check is complete rather than the start of the branch is because
-            //we don't want the required amount of an egg to be doubled if we need to get it. GetProducible item has this check already, but it's not 
-            //garunteed to hit that check if the player already has the eggs
-            GetItemNode GetItemNode(ItemName itemName, int desiredCount)
-            {
-                string id = Instance.ItemIds[itemName];
-                return new GetItemNode(new Action($"Player has {desiredCount} {Instance.dummyItems.First(i => i.QualifiedItemId == id).DisplayName}"), id, desiredCount);
-            }
-
-            //I don't like how boilerplate this is, there has to be a better way
+            //don't need to set true nodes for last brach in trees since they will theoretically never be reached
+            //(assuming this is called to check if the player has all the required ingrediants to make the recipe)
 
             switch (recipeName)
             {
                 case "Omelet":
                     #region Get Milk
                     int desiredMilkCount = 1;
-
-                    #region Delegate Checks
-                    bool HasLargeGoatMilk()
-                    {
-                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.LargeGoatMilk], desiredMilkCount);
-                    }
-                    bool HasLargeMilk()
-                    {
-                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.LargeMilk], desiredMilkCount);
-                    }
-                    bool HasGoatMilk()
-                    {
-                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.GoatMilk], desiredMilkCount);
-                    }
-                    bool HasMilk()
-                    {
-                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.Milk], desiredMilkCount);
-                    }
-                    #endregion
-
-                    //player has large goat milk
-                    DecisionTreeNode largeGoatCheck = new Decision(GetItemNode(ItemName.LargeGoatMilk, desiredMilkCount),
-                                                        GetProducableItemTree(ItemName.Milk, desiredMilkCount, actionAfterward, false),
-                                                        HasLargeGoatMilk);
-
-                    //player has large milk
-                    DecisionTreeNode largeMilkCheck = new Decision(GetItemNode(ItemName.LargeMilk, desiredMilkCount),
-                                                        largeGoatCheck,
-                                                        HasLargeMilk);
-
-                    //player has goat milk
-                    DecisionTreeNode goatCheck = new Decision(GetItemNode(ItemName.GoatMilk, desiredMilkCount),
-                                                        largeMilkCheck,
-                                                        HasGoatMilk);
-
-                    //player has milk
-                    DecisionTreeNode milkCheck = new Decision(GetItemNode(ItemName.Milk, desiredMilkCount),
-                                                        goatCheck,
-                                                        HasMilk);
-
+                    List<Decision> milkTree = CreateIngrediantTree(Instance.MilkList, desiredMilkCount);
                     #endregion
 
                     #region Get Egg
                     int desiredEggCount = 1;
-
-                    #region Delegate Checks
-                    bool HasOstritchEgg()
-                    {
-                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.OstritchEgg], desiredEggCount);
-                    }
-
-                    bool HasVoidEgg()
-                    {
-                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.VoidEgg], desiredEggCount);
-                    }
-
-
-                    bool HasDuckEgg()
-                    {
-                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.DuckEgg], desiredEggCount);
-                    }
-
-                    bool HasBrownLargeEgg()
-                    { 
-                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.BrownLargeEgg], desiredEggCount);
-                    }
-
-                    bool HasLargeEgg()
-                    {
-                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.LargeEgg], desiredEggCount);
-                    }
-
-                    bool HasBrownEgg()
-                    {
-                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.BrownEgg], desiredEggCount);
-                    }
-
-                    bool HasEgg()
-                    {
-                        return Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[ItemName.Egg], desiredEggCount);
-                    }
-
+                    List<Decision> eggTree = CreateIngrediantTree(Instance.EggList, desiredEggCount);
+                    eggTree.ForEach(t => t.SetTrueNode(milkTree[0]));
                     #endregion
 
-                    #region Tree
-                    //player has large egg
-                    DecisionTreeNode ostritchEggCheck = new Decision(milkCheck,
-                                                        GetProducableItemTree(ItemName.Egg, desiredEggCount, actionAfterward, false),
-                                                        HasOstritchEgg);
-
-                    //player has large egg
-                    DecisionTreeNode voidEggCheck = new Decision(milkCheck,
-                                                        ostritchEggCheck,
-                                                        HasVoidEgg);
-
-                    //player has large egg
-                    DecisionTreeNode duckEggCheck = new Decision(milkCheck,
-                                                        voidEggCheck,
-                                                        HasDuckEgg);
-
-                    //player has brown large egg
-                    DecisionTreeNode brownLargeEggCheck = new Decision(milkCheck,
-                                                        duckEggCheck,
-                                                        HasBrownLargeEgg);
-
-                    //player has large egg
-                    DecisionTreeNode largeEggCheck = new Decision(milkCheck,
-                                                        brownLargeEggCheck,
-                                                        HasLargeEgg);
-
-                    //player has brown egg 
-                    DecisionTreeNode brownEggCheck = new Decision(milkCheck,
-                                                        largeEggCheck,
-                                                        HasBrownEgg);
-
-                    //player has (white) eggs
-                    DecisionTreeNode eggCheck = new Decision(milkCheck,
-                                                        brownEggCheck,
-                                                        HasEgg);
-                    #endregion
-                    #endregion
-
-
-                    root = eggCheck;
+                    root = eggTree[0];
                     break;
             }
 
             return root;
 
+        }
+
+        /// <summary>
+        /// Helper method to create a tree that will check if the player has a certain amount of an item
+        /// within a pool
+        /// </summary>
+        /// <param name="itemNames">the list of items</param>
+        /// <param name="desiredAmount">the amount the player needs to have of at least one of the items</param>
+        /// <returns></returns>
+        private static List<Decision> CreateIngrediantTree(List<ItemName> itemNames, int desiredAmount)
+        { 
+            List<Decision.DecisionDelegate> checks = Instance.GetDecisionChecks(itemNames, desiredAmount);
+            List<Decision> tree = itemNames.Select((egg, index) => new Decision(checks[index])).ToList();
+
+            for (int i = 0; i < tree.Count; i++)
+            {
+                Decision decision = tree[i];
+                decision.SetFalseNode(i == checks.Count - 1 ? GetProducableItemTree(itemNames[0], desiredAmount, null, false) : tree[i + 1]);
+            }
+            return tree;
+        }
+
+        /// <summary>
+        /// Gives a lsit of deicsion check of if the player has a certain amount of each item
+        /// </summary>
+        /// <param name="itemNames">the items that are being checked for</param>
+        /// <param name="desiredAmount">the desiredAmount of items that are being checked for</param>
+        /// <returns></returns>
+        private List<Decision.DecisionDelegate> GetDecisionChecks(List<ItemName> itemNames, int desiredAmount)
+        {
+            //this method is currently only being used in CreateIngrediantTree. If that stays, then this can be combined into said method
+            return itemNames.Select(e =>
+            {
+                return (Decision.DecisionDelegate)(() => Instance.PlayerHasDesieredAmountOfItem(Instance.ItemIds[e], desiredAmount));
+            }).ToList();
         }
 
         /// <summary>
@@ -597,7 +513,7 @@ namespace Stardew_100_Percent_Mod
             //Does player have the required items to create the item in their inventory it's different depending on if
             //it's a cooking recipe because cooking recipies can accept multiple types of ingrediants
 
-            DecisionTreeNode hasItemsCooking = GetMissingRecipeIngrediants(name, new Action($"Cook {name}"));
+            DecisionTreeNode hasItemsCooking = GetMissingRecipeIngrediants(name);
 
             DecisionTreeNode hasItemsCrafting = new Decision(
                 new Action($"{(cooking ? "Cook" : "Craft")} {name}"),
@@ -823,14 +739,8 @@ namespace Stardew_100_Percent_Mod
             }
         }
 
-        
-
         public void UpdateReservedItemDicionary(string qualifiedItemId, int count)
         {
-            if (qualifiedItemId == ItemIds[ItemName.Egg])
-            {
-                logMethod("a");
-            }
             if (InventoryItemReserveDictonary.ContainsKey(qualifiedItemId))
             {
                 InventoryItemReserveDictonary[qualifiedItemId] += count;

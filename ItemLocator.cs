@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static Stardew_100_Percent_Mod.TaskManager;
 
 namespace Stardew_100_Percent_Mod
 {
@@ -48,6 +49,15 @@ namespace Stardew_100_Percent_Mod
             });
 
             return desiredItem;
+        }
+        /// <summary>
+        /// Gets a reference of an item
+        /// </summary>
+        /// <param name="itemName">the itemName of the item</param>
+        /// <returns>The item object with the desired QualifiedItemId</returns>
+        public static Item GetItem(ItemName itemName)
+        { 
+            return GetItem(TaskManager.Instance.ItemIds[itemName]);
         }
 
         /// <summary>

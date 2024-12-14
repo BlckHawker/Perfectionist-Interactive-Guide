@@ -65,34 +65,16 @@ namespace Stardew_100_Percent_Mod
             actions.Insert(0, new Action(framerate));
             actions = instance.CombineActions(actions);
 
-
             //check if the player has a shed on the farm
             Farm farm = (Farm)Game1.locations.First(l => l.NameOrUniqueName == "Farm");
             IEnumerable<Building> sheds = farm.buildings.Where(b => b.buildingType.Value == "Shed");
             IEnumerable<Building> bigSheds = farm.buildings.Where(b => b.buildingType.Value == "Big Shed");
-
 
             actions.Add(new Action($"Shed under construction: {sheds.Any(s => s.daysOfConstructionLeft.Value > 0)}"));
             actions.Add(new Action($"Built shed count: {sheds.Count(s => s.daysOfConstructionLeft.Value < 1)}"));
             //these two do not working
             actions.Add(new Action($"Big Shed construction in progress: {bigSheds.Any(s => s.daysOfConstructionLeft.Value > 0)}"));
             actions.Add(new Action($"Big Shed count: {bigSheds.Count(s => s.daysOfConstructionLeft.Value < 1)}"));
-
-
-            //there is a possible bug where the reserved count is doubled for items within GetMissingRecipeIngrediants
-            //since that method also calls GetProducableItemTree which also decreases the cound
-            int requiredEggCount = 0;
-            int reservedEggCount = 0;
-
-            Dictionary<string, int> requiredDictionary = instance.requiredItemsDictionary;
-            Dictionary<string, int> reservedDictionary = instance.InventoryItemReserveDictonary;
-
-            requiredDictionary.TryGetValue(instance.ItemIds[ItemName.Egg], out requiredEggCount);
-            reservedDictionary.TryGetValue(instance.ItemIds[ItemName.Egg], out reservedEggCount);
-
-            actions.Add(new Action($"Required {ItemName.Egg.ToString()} count: {requiredEggCount}"));
-            actions.Add(new Action($"Reserved {ItemName.Egg.ToString()} count: {reservedEggCount}"));
-
 
             Menu.SetTasks(actions);
         }

@@ -37,7 +37,7 @@ namespace Stardew_100_Percent_Mod
             this.permanent = permanent;
         }
 
-        public Decision(DecisionDelegate checkTask, bool permanent = false) : this(null, null, checkTask, permanent) { }
+        public Decision(DecisionDelegate checkTask, bool permanent = false) : this(new Action(""), new Action(""), checkTask, permanent) { }
 
         //Perform the test
         private DecisionTreeNode GetBranch()
