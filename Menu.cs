@@ -64,33 +64,6 @@ namespace Stardew_100_Percent_Mod
         }
 
         /// <summary>
-        /// Debug metho to draw a certain string on the screen with a black background
-        /// </summary>
-        /// <param name="spriteBatch"></param>
-        /// <param name="str">the string that will be drawn</param>
-        /// <param name="menuXPostion">the x position of the top left of the menu</param>
-        /// <param name="menuYPosition">the y position of the top left of the menu</param>
-        /// <param name="charLength">The width of one char. Will calcuate the length of the menu by being multiplied by the length of the string</param>
-        public static void DebugDrawMenuBackground(SpriteBatch spriteBatch, string str, int menuXPostion, int menuYPosition, int charLength)
-        {
-            //todo to get the width of the background, get what the width should be for a specifc character and sum the values
-            float backgroundWidth = charLength * str.Length;
-            float backgroundHeight = 50 + heightOffset;
-
-            Rectangle rectangle = new Rectangle(menuXPostion, menuYPosition, (int)Math.Ceiling(backgroundWidth), (int)Math.Ceiling(backgroundHeight));
-
-            //draw the background
-            spriteBatch.Draw(Game1.staminaRect, rectangle, Color.Black * 0.5f);
-
-
-            //draw the text
-            Vector2 startingPosition = new Vector2(widthOffset + menuXPostion, heightOffset + menuYPosition);
-            Vector2 newPos = startingPosition;
-            spriteBatch.DrawString(Game1.dialogueFont, str, newPos, Color.White);
-        }
-
-
-        /// <summary>
         /// Set the monitor value
         /// </summary>
         /// <param name="monitor">The monitor object needed to access the Log function</param>

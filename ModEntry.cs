@@ -6,6 +6,8 @@ using Stardew_100_Percent_Mod.Decision_Trees;
 using StardewValley.Locations;
 using System.Linq;
 using StardewValley.Buildings;
+using static Stardew_100_Percent_Mod.TaskManager;
+using System.ComponentModel;
 
 namespace Stardew_100_Percent_Mod
 {
@@ -46,18 +48,22 @@ namespace Stardew_100_Percent_Mod
             if (!Context.IsWorldReady)
                 return;
 
+            TaskManager instance = TaskManager.Instance;
+
+
             if (e.IsOneSecond)
             {
                 framerate = $"Framerate: {frames} FPS.";
                 frames = 0;
             }
 
-            TaskManager.Instance.ResetItemDictionarys();
+
+            instance.ResetItemDictionarys();
 
             //Go through the decsion tree and check what the desired action is
-            List<Action> actions = TaskManager.Instance.roots.Select(root => (Action)root.MakeDecision() ).ToList();
+            List<Action> actions = instance.roots.Select(root => (Action)root.MakeDecision() ).ToList();
             actions.Insert(0, new Action(framerate));
-            actions = TaskManager.Instance.CombineActions(actions);
+            actions = instance.CombineActions(actions);
 
 
             //check if the player has a shed on the farm
@@ -72,6 +78,20 @@ namespace Stardew_100_Percent_Mod
             actions.Add(new Action($"Big Shed construction in progress: {bigSheds.Any(s => s.daysOfConstructionLeft.Value > 0)}"));
             actions.Add(new Action($"Big Shed count: {bigSheds.Count(s => s.daysOfConstructionLeft.Value < 1)}"));
 
+
+            //there is a possible bug where the reserved count is doubled for items within GetMissingRecipeIngrediants
+            //since that method also calls GetProducableItemTree which also decreases the cound
+            int requiredEggCount = 0;
+            int reservedEggCount = 0;
+
+            Dictionary<string, int> requiredDictionary = instance.requiredItemsDictionary;
+            Dictionary<string, int> reservedDictionary = instance.InventoryItemReserveDictonary;
+
+            requiredDictionary.TryGetValue(instance.ItemIds[ItemName.Egg], out requiredEggCount);
+            reservedDictionary.TryGetValue(instance.ItemIds[ItemName.Egg], out reservedEggCount);
+
+            actions.Add(new Action($"Required {ItemName.Egg.ToString()} count: {requiredEggCount}"));
+            actions.Add(new Action($"Reserved {ItemName.Egg.ToString()} count: {reservedEggCount}"));
 
 
             Menu.SetTasks(actions);

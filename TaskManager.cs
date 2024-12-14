@@ -39,13 +39,15 @@ namespace Stardew_100_Percent_Mod
         private GetMoneyAction getMoneyAction;
 
 
-
+       
         //Keeps track of how many of each item the user needs
         //Used so there aren't multiple tasks saying "Buy x items at store"
         //Example, there are two tasks that both rquire the user to get 15 seeds
         //We don't want two tasks saying "Buy 15 seeds at store"
         //It should say "Buy 30 seeds at store" instead
-        Dictionary<string, int> requiredItemsDictionary;
+
+        //make this private. Became public for debugging purposes
+        public Dictionary<string, int> requiredItemsDictionary;
 
         //keeps track of what items the player has in their inventory. Mainly used to reserve items for quests
         //key is the item id
@@ -158,7 +160,7 @@ namespace Stardew_100_Percent_Mod
             Instance.roots = new List<DecisionTreeNode>();
 
 
-            Instance.roots  = new List<DecisionTreeNode>() { CraftItem("Omelet", true) };
+            Instance.roots  = new List<DecisionTreeNode>() { cookOmelet };
 
             //Instance.roots = new List<DecisionTreeNode>(new[] { cookOmelet, craftChest, parsnipSeedsTree, becomeFriendsWithJas });
         }
@@ -222,7 +224,7 @@ namespace Stardew_100_Percent_Mod
 
                     //player has large goat milk
                     DecisionTreeNode largeGoatCheck = new Decision(GetItemNode(ItemName.LargeGoatMilk, desiredMilkCount),
-                                                        GetProducableItemTree(ItemName.Milk, desiredMilkCount, actionAfterward),
+                                                        GetProducableItemTree(ItemName.Milk, desiredMilkCount, actionAfterward, false),
                                                         HasLargeGoatMilk);
 
                     //player has large milk
@@ -287,7 +289,7 @@ namespace Stardew_100_Percent_Mod
                     #region Tree
                     //player has large egg
                     DecisionTreeNode ostritchEggCheck = new Decision(milkCheck,
-                                                        GetProducableItemTree(ItemName.Egg, desiredEggCount, actionAfterward),
+                                                        GetProducableItemTree(ItemName.Egg, desiredEggCount, actionAfterward, false),
                                                         HasOstritchEgg);
 
                     //player has large egg
@@ -337,8 +339,9 @@ namespace Stardew_100_Percent_Mod
         /// <param name="qualifiedItemId">the id of the item that needs to be get</param>
         /// <param name="desiredAmount">the amount of the item that would like to be aquired</param>
         /// <param name="actionAfterward">if something should be done after the amount of the item is found</param>
+        /// <param name="decreaseCount">if InventoryItemReserveDictonary count should decrease</param>
         /// <returns></returns>
-        public static DecisionTreeNode GetProducableItemTree(string qualifiedItemId, int desiredAmount, DecisionTreeNode? actionAfterward = null)
+        public static DecisionTreeNode GetProducableItemTree(string qualifiedItemId, int desiredAmount, DecisionTreeNode? actionAfterward = null, bool decreaseCount = true)
         { 
 
             Item item = ItemLocator.GetItem(qualifiedItemId);
@@ -420,7 +423,7 @@ namespace Stardew_100_Percent_Mod
             bool PlayerHasDesieredAmountOfItem()
             {
                 //check if found in the player's ivnentory
-                return Instance.PlayerHasDesieredAmountOfItem(qualifiedItemId, desiredAmount);
+                return Instance.PlayerHasDesieredAmountOfItem(qualifiedItemId, desiredAmount, decreaseCount);
             }
 
             #endregion
@@ -456,9 +459,10 @@ namespace Stardew_100_Percent_Mod
         /// <param name="itemName">the name of the item</param>
         /// <param name="desiredAmount">the amount of the item that would like to be aquired</param>
         /// <param name="actionAfterward">if something should be done after the amount of the item is found</param>
-        public static DecisionTreeNode GetProducableItemTree(ItemName itemName, int desiredAmount, DecisionTreeNode? actionAfterward = null)
+        /// <param name="decreaseCount">if InventoryItemReserveDictonary count should decrease</param>
+        public static DecisionTreeNode GetProducableItemTree(ItemName itemName, int desiredAmount, DecisionTreeNode? actionAfterward = null, bool decreaseCount = true)
         {
-            return GetProducableItemTree(Instance.ItemIds[itemName], desiredAmount, actionAfterward);
+            return GetProducableItemTree(Instance.ItemIds[itemName], desiredAmount, actionAfterward, decreaseCount);
         }
         /// <summary>
         /// Get the branch to become friends with Sebestian
@@ -691,11 +695,15 @@ namespace Stardew_100_Percent_Mod
         /// </summary>
         /// <param name="qualifiedItemId">the id the item</param>
         /// <param name="desiredAmount">the amount that is wanted</param>
+        /// <param name="decreaseCount">if InventoryItemReserveDictonary count should decrease</param>
         /// <returns></returns>
-        private bool PlayerHasDesieredAmountOfItem(string qualifiedItemId, int desiredAmount)
+        private bool PlayerHasDesieredAmountOfItem(string qualifiedItemId, int desiredAmount, bool decreaseCount = true)
         {
             Instance.InventoryItemReserveDictonary.TryGetValue(qualifiedItemId, out int itemCount);
-            Instance.UpdateReservedItemDicionary(qualifiedItemId, -desiredAmount);
+            if (decreaseCount)
+            { 
+                Instance.UpdateReservedItemDicionary(qualifiedItemId, -desiredAmount);
+            }
             return itemCount >= desiredAmount;
         }
         #endregion
@@ -819,6 +827,10 @@ namespace Stardew_100_Percent_Mod
 
         public void UpdateReservedItemDicionary(string qualifiedItemId, int count)
         {
+            if (qualifiedItemId == ItemIds[ItemName.Egg])
+            {
+                logMethod("a");
+            }
             if (InventoryItemReserveDictonary.ContainsKey(qualifiedItemId))
             {
                 InventoryItemReserveDictonary[qualifiedItemId] += count;
@@ -829,9 +841,12 @@ namespace Stardew_100_Percent_Mod
                 InventoryItemReserveDictonary[qualifiedItemId] = count;
             }
 
-            //clamp to zero
-            InventoryItemReserveDictonary[qualifiedItemId] = Math.Clamp(InventoryItemReserveDictonary[qualifiedItemId], 0, int.MaxValue);
+            //uncomment this. This was commented out for debugging purposes
 
+            //clamp to zero
+            //InventoryItemReserveDictonary[qualifiedItemId] = Math.Clamp(InventoryItemReserveDictonary[qualifiedItemId], 0, int.MaxValue);
+
+            OrderInventoryItemReserveDictonary();
         }
 
         /// <summary>
@@ -879,8 +894,16 @@ namespace Stardew_100_Percent_Mod
 
 
             //order by count in decending order
-            InventoryItemReserveDictonary = InventoryItemReserveDictonary.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => kv.Value);
+            OrderInventoryItemReserveDictonary();
             return;
+        }
+
+        /// <summary>
+        /// Helper method that orders InventoryItemReserveDictonary based on the value in descending
+        /// </summary>
+        private void OrderInventoryItemReserveDictonary()
+        {
+            InventoryItemReserveDictonary = InventoryItemReserveDictonary.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => kv.Value);
         }
 
 
