@@ -1,5 +1,6 @@
 ﻿using Stardew_100_Percent_Mod.Decision_Trees;
 using StardewModdingAPI;
+using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.Buildings;
 using StardewValley.Locations;
@@ -75,6 +76,7 @@ namespace Stardew_100_Percent_Mod
             Egg,
             GoatMilk,
             GoldenEgg,
+            Hardwood,
             LargeEgg,
             LargeGoatMilk,
             LargeMilk,
@@ -119,6 +121,7 @@ namespace Stardew_100_Percent_Mod
                 { ItemName.Egg, "(O)176"},
                 { ItemName.GoatMilk, "(O)436"},
                 { ItemName.GoldenEgg, "(O)928"},
+                { ItemName.Hardwood, "(O)709"},
                 { ItemName.LargeEgg, "(O)174"},
                 { ItemName.LargeGoatMilk, "(O)438" },
                 { ItemName.LargeMilk, "(O)186"},
@@ -133,8 +136,6 @@ namespace Stardew_100_Percent_Mod
             List<ItemName> missingItemIds = Enumerable.Range(0, Enum.GetNames(typeof(ItemName)).Length)
                 .Where(i => !Instance.ItemIds.ContainsKey((ItemName)i))
                 .Select(i => (ItemName)i).ToList();
-            
-
 
             if(missingItemIds.Count > 0)
             {
@@ -159,13 +160,10 @@ namespace Stardew_100_Percent_Mod
 
             DecisionTreeNode cookOmelet = CraftItem("Omelet", true);
 
-            Instance.roots = new List<DecisionTreeNode>();
+            DecisionTreeNode getLevel3House = GetHouseUpgrade(3);
 
 
-            //Instance.roots  = new List<DecisionTreeNode>() { cookOmelet };
-
-
-            Instance.roots  = new List<DecisionTreeNode>() { GetMissingRecipeIngrediants("Omelet") };
+            Instance.roots  = new List<DecisionTreeNode>() { getLevel3House };
 
             //Instance.roots = new List<DecisionTreeNode>(new[] { cookOmelet, craftChest, parsnipSeedsTree, becomeFriendsWithJas });
         }
@@ -450,6 +448,7 @@ namespace Stardew_100_Percent_Mod
             #endregion
         }
 
+       
         /// <summary>
         /// Get the branch to craft an item
         /// </summary>
@@ -473,6 +472,7 @@ namespace Stardew_100_Percent_Mod
             #region Delegate Actions
 
             #endregion
+            
             #region Delegate Checks
             bool PlayerHasKitchen()
             {
@@ -548,6 +548,7 @@ namespace Stardew_100_Percent_Mod
                                         enoughMoney,
                                         HasRequestedHouseUpgrade);
 
+            //todo refactors this to use the "GetHouseUpgrade" method
             //does the player have a kitchen
             Decision playerHasKitchen = new Decision(knowRecipe,
                                         hasRequesetedHouseUpgrade,
@@ -556,6 +557,108 @@ namespace Stardew_100_Percent_Mod
             #endregion
 
             return cooking ? playerHasKitchen : knowRecipe;
+        }
+
+        /// <summary>
+        /// Get a branch to get the farmhouse to a certain upgrade level
+        /// </summary>
+        /// <param name="desiredLevel">the desired upgrade level of the house</param>
+        /// <param name="actionAfterward">if something should be done after the farm house is upgraded to the desired level</param>
+        /// <returns></returns>
+        private static DecisionTreeNode GetHouseUpgrade(int desiredLevel, DecisionTreeNode? actionAfterward = null)
+        {
+            Action upgradeHouseAction = new Action("Upgrade house from Robin");
+            //the amount of money that is needed for each upgradeLevel
+            int[] moneyArr = new int[] { 10000, 65000, 100000 };
+
+            #region Delegate Checks
+
+            Decision.DecisionDelegate HasDesiredLevelHouse(int level)
+            {
+                //this is true if the player's house upgrade level meets or exceeds "level"
+                return () => ((FarmHouse)Game1.locations.First(l => l.NameOrUniqueName == "FarmHouse")).upgradeLevel >= level;
+            }
+
+            Decision.DecisionDelegate HasRequestedHouseUpgrade(int level)
+            {
+                //this is true if the player's house level is (level - 1) and the player has requsted a house upgrade
+                return () => level - 1 == ((FarmHouse)Game1.locations.First(l => l.NameOrUniqueName == "FarmHouse")).upgradeLevel 
+                    && Instance.IsUpgradingHouse();
+            }
+
+            //Check if the player has the required of money for a specific house upgrade level
+            Decision.DecisionDelegate HasRequiredMoneyForUpgrade(int upgradeLevel)
+            {
+                return () => Instance.HasDesiredMoney(moneyArr[upgradeLevel - 1]);
+            }
+
+
+            #endregion
+
+            //robin is avaiable for requesting construction
+            DecisionTreeNode notUpgrading = new Decision(upgradeHouseAction, completeAction, Instance.RobinAviableToBuild());
+
+
+            //player has enough wood for the level 1 upgrade
+            DecisionTreeNode playerHasWood = GetProducableItemTree(ItemName.Wood, 450, notUpgrading);
+
+            //the player has enough hardwood for the level 2 upgrade
+            DecisionTreeNode hasHardWood = GetProducableItemTree(ItemName.Hardwood, 100, notUpgrading);
+            //the player has the desired amount of gold for level 2 house upgrade
+            DecisionTreeNode hasLevel2Money = new Decision(hasHardWood, new Action($"Get {moneyArr[1]} gold"), HasRequiredMoneyForUpgrade(2));
+
+
+            #region Level 1
+            //the player has the desired amount of gold for level 1 house upgrade
+            DecisionTreeNode hasLevel1Money = new Decision(playerHasWood, new Action($"Get {moneyArr[0]} gold"), HasRequiredMoneyForUpgrade(1));
+
+            //the player has requested house upgrade level 1
+            DecisionTreeNode requestedHouseLevel1 = new Decision(completeAction, hasLevel1Money, HasRequestedHouseUpgrade(1), true);
+
+            //Checks if the player needs to upgrade to a higher level house or if the task is complete
+            DecisionTreeNode nextTaskLevel1 = desiredLevel == 1 ? completeAction : hasLevel2Money;
+
+            //the player has a level 1 house
+            DecisionTreeNode hasLevel1House = new Decision(nextTaskLevel1, requestedHouseLevel1, HasDesiredLevelHouse(1), true);
+            #endregion
+
+            #region Level 2
+
+            //the player has the desired amount of gold for level 3 house upgrade
+            DecisionTreeNode hasLevel3Money = new Decision(notUpgrading, new Action($"Get {moneyArr[2]} gold"), HasRequiredMoneyForUpgrade(3));
+
+            //the player has requested house upgrade level 2
+            DecisionTreeNode requestedHouseLevel2 = new Decision(completeAction, hasLevel1House, HasRequestedHouseUpgrade(2), true);
+
+            //Checks if the player needs to upgrade to a higher level house or if the task is complete
+            DecisionTreeNode nextTaskLevel2 = desiredLevel == 2 ? completeAction : hasLevel3Money;
+
+            //the player has a level 2 house
+            DecisionTreeNode hasLevel2House = new Decision(nextTaskLevel2, requestedHouseLevel2, HasDesiredLevelHouse(2), true);
+            #endregion
+
+            # region Level3
+            //player has requested house upgrade level 3
+            DecisionTreeNode requestedHouseLevel3 = new Decision(completeAction, hasLevel2House, HasRequestedHouseUpgrade(3), true);
+
+            //the player has a level 3 house
+            DecisionTreeNode hasLevel3House = new Decision(completeAction, requestedHouseLevel3, HasDesiredLevelHouse(3), true);
+
+            #endregion
+
+            switch (desiredLevel)
+            {
+                case 1:
+                    return hasLevel1House;
+                case 2:
+                    return hasLevel2House;
+                case 3:
+                    return hasLevel3House;
+                default:
+                    throw(new Exception($"Can't upgrade the house to level {desiredLevel}. Valid levels are 1-3 inclusivley"));
+            }
+
+
         }
 
         /// <summary>
@@ -596,14 +699,34 @@ namespace Stardew_100_Percent_Mod
 
 
         #region Delegate Checks
-        
+
+
         /// <summary>
-        /// Actions that says how much money the player should get
+        /// 
         /// </summary>
-        /// <returns></returns>
-        private string GetDesiredMoneyAmount()
-        { 
-            return $"Get {requiredMoney - Game1.player.Money} gold" ;
+        /// <returns>A delegate that tells if Robin is avaiable to build something for the player</returns>
+        Decision.DecisionDelegate RobinAviableToBuild()
+        {
+            Farm farm = (Farm)Game1.locations.First(l => l.NameOrUniqueName == "Farm");
+            IEnumerable<Building> buildings = farm.buildings;
+            return () => !IsUpgradingHouse() && buildings.All(s => s.daysOfConstructionLeft.Value <= 0);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns>true if the house is being upgraded</returns>
+        bool IsUpgradingHouse()
+        {
+            return Game1.player.daysUntilHouseUpgrade.Value != -1;
+        }
+
+
+        private bool HasDesiredMoney(int desiredAmount)
+        {
+            bool condition = reservedMoney >= desiredAmount;
+            UpdateReservedMoney(-desiredAmount);
+            return condition;
         }
 
         /// <summary>
@@ -625,12 +748,20 @@ namespace Stardew_100_Percent_Mod
         #endregion
 
         #region Delegate Actions
-        private bool HasDesiredMoney(int desiredAmount)
+
+        /// <summary>
+        /// Actions that says how much money the player should get
+        /// </summary>
+        /// <returns></returns>
+        private string GetDesiredMoneyAmount()
         {
-            bool condition = reservedMoney >= desiredAmount;
-            UpdateReservedMoney(-desiredAmount);
-            return condition;
+            return $"Get {requiredMoney - Game1.player.Money} gold";
         }
+
+
+
+        #endregion
+
 
         bool PlayerKnowsRecipe(string name)
         {
@@ -640,7 +771,7 @@ namespace Stardew_100_Percent_Mod
         bool PlayerHasCraftedRecipie(DummyRecipe recipe, bool cooking)
         {
             if (cooking)
-            { 
+            {
                 Game1.player.recipesCooked.TryGetValue(((DummyCookingRecipe)recipe).UnqualifiedItemId, out int timesCrafted);
                 return timesCrafted > 0;
             }
@@ -652,8 +783,6 @@ namespace Stardew_100_Percent_Mod
         {
             return Instance.GetRecipeMissingItems(dummyRecipe).Count == 0;
         }
-
-        #endregion
 
         /// <summary>
         /// Combine Actions that tell the player to get the same item, but different amounts
