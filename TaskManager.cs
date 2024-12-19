@@ -163,7 +163,7 @@ namespace Stardew_100_Percent_Mod
             DecisionTreeNode getLevel3House = GetHouseUpgrade(3);
 
 
-            Instance.roots  = new List<DecisionTreeNode>() { getLevel3House };
+            Instance.roots  = new List<DecisionTreeNode>() { cookOmelet };
 
             //Instance.roots = new List<DecisionTreeNode>(new[] { cookOmelet, craftChest, parsnipSeedsTree, becomeFriendsWithJas });
         }
@@ -474,23 +474,6 @@ namespace Stardew_100_Percent_Mod
             #endregion
             
             #region Delegate Checks
-            bool PlayerHasKitchen()
-            {
-                FarmHouse farmhouse = (FarmHouse)Game1.locations.First(l => l.NameOrUniqueName == "FarmHouse");
-                Microsoft.Xna.Framework.Point fridgePoint = farmhouse.fridgePosition;
-                return fridgePoint != Microsoft.Xna.Framework.Point.Zero;
-            }
-
-            bool HasRequestedHouseUpgrade()
-            {
-                return Game1.player.daysUntilHouseUpgrade.Value != -1;
-            }
-
-            bool HasMoneyForHouseUpgrade()
-            {
-                return Instance.HasDesiredMoney(10000);
-            }
-
             bool PlayerKnowsRecipe()
             {
                 return Instance.PlayerKnowsRecipe(name);
@@ -509,7 +492,6 @@ namespace Stardew_100_Percent_Mod
             #endregion
 
             #region Tree
-
             //Does player have the required items to create the item in their inventory it's different depending on if
             //it's a cooking recipe because cooking recipies can accept multiple types of ingrediants
 
@@ -535,24 +517,10 @@ namespace Stardew_100_Percent_Mod
                 PlayerKnowsRecipe,
                 true);
 
-            //does the player have 450 wood? If they do, tell them to get the kitchen upgrade from Robin
-            DecisionTreeNode playerHasWood = GetProducableItemTree(ItemName.Wood, 450, new Action("Get kitchen upgrade from Robin"));
-
-            //does the player have enough money for the first house upgrade
-            Decision enoughMoney = new Decision(playerHasWood,
-                                   Instance.getMoneyAction,
-                                   HasMoneyForHouseUpgrade);
-
-            //has the player requested a house upgrade?
-            Decision hasRequesetedHouseUpgrade = new Decision(completeAction,
-                                        enoughMoney,
-                                        HasRequestedHouseUpgrade);
-
-            //todo refactors this to use the "GetHouseUpgrade" method
             //does the player have a kitchen
             Decision playerHasKitchen = new Decision(knowRecipe,
-                                        hasRequesetedHouseUpgrade,
-                                        PlayerHasKitchen,
+                                        GetHouseUpgrade(1),
+                                        Instance.HasDesiredLevelHouse(1),
                                         true);
             #endregion
 
@@ -572,13 +540,6 @@ namespace Stardew_100_Percent_Mod
             int[] moneyArr = new int[] { 10000, 65000, 100000 };
 
             #region Delegate Checks
-
-            Decision.DecisionDelegate HasDesiredLevelHouse(int level)
-            {
-                //this is true if the player's house upgrade level meets or exceeds "level"
-                return () => ((FarmHouse)Game1.locations.First(l => l.NameOrUniqueName == "FarmHouse")).upgradeLevel >= level;
-            }
-
             Decision.DecisionDelegate HasRequestedHouseUpgrade(int level)
             {
                 //this is true if the player's house level is (level - 1) and the player has requsted a house upgrade
@@ -619,7 +580,7 @@ namespace Stardew_100_Percent_Mod
             DecisionTreeNode nextTaskLevel1 = desiredLevel == 1 ? completeAction : hasLevel2Money;
 
             //the player has a level 1 house
-            DecisionTreeNode hasLevel1House = new Decision(nextTaskLevel1, requestedHouseLevel1, HasDesiredLevelHouse(1), true);
+            DecisionTreeNode hasLevel1House = new Decision(nextTaskLevel1, requestedHouseLevel1, Instance.HasDesiredLevelHouse(1), true);
             #endregion
 
             #region Level 2
@@ -634,15 +595,15 @@ namespace Stardew_100_Percent_Mod
             DecisionTreeNode nextTaskLevel2 = desiredLevel == 2 ? completeAction : hasLevel3Money;
 
             //the player has a level 2 house
-            DecisionTreeNode hasLevel2House = new Decision(nextTaskLevel2, requestedHouseLevel2, HasDesiredLevelHouse(2), true);
+            DecisionTreeNode hasLevel2House = new Decision(nextTaskLevel2, requestedHouseLevel2, Instance.HasDesiredLevelHouse(2), true);
             #endregion
 
             # region Level3
             //player has requested house upgrade level 3
-            DecisionTreeNode requestedHouseLevel3 = new Decision(completeAction, hasLevel2House, HasRequestedHouseUpgrade(3), true);
+            DecisionTreeNode requestedHouseLevel3 = new Decision(completeAction, hasLevel3Money, HasRequestedHouseUpgrade(3), true);
 
             //the player has a level 3 house
-            DecisionTreeNode hasLevel3House = new Decision(completeAction, requestedHouseLevel3, HasDesiredLevelHouse(3), true);
+            DecisionTreeNode hasLevel3House = new Decision(completeAction, requestedHouseLevel3, Instance.HasDesiredLevelHouse(3), true);
 
             #endregion
 
@@ -700,6 +661,16 @@ namespace Stardew_100_Percent_Mod
 
         #region Delegate Checks
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="level"></param>
+        ///
+        /// <returns>a method that tells if the farmhouse is at least a a certain level</returns>
+        Decision.DecisionDelegate HasDesiredLevelHouse(int level)
+        {
+            return () => ((FarmHouse)Game1.locations.First(l => l.NameOrUniqueName == "FarmHouse")).upgradeLevel >= level;
+        }
 
         /// <summary>
         /// 
