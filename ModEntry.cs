@@ -8,6 +8,8 @@ using System.Linq;
 using StardewValley.Buildings;
 using static Stardew_100_Percent_Mod.TaskManager;
 using System.ComponentModel;
+using HarmonyLib;
+using StardewValley.GameData.Crops;
 
 namespace Stardew_100_Percent_Mod
 {
@@ -31,6 +33,15 @@ namespace Stardew_100_Percent_Mod
             helper.Events.Display.Rendered += Rendered;
 
             Menu.SetMonitor(Monitor);
+
+            HarmonyPatches.Initialize(Monitor);
+
+            var harmony = new Harmony(this.ModManifest.UniqueID);
+
+            harmony.Patch(
+               original: AccessTools.Method(typeof(Crop), nameof(Crop.harvest)),
+               postfix: new HarmonyMethod(typeof(HarmonyPatches), nameof(HarmonyPatches.Harvest_Postfix))
+            );
         }
 
         private void SaveLoaded(object? sender, SaveLoadedEventArgs e)
@@ -47,6 +58,8 @@ namespace Stardew_100_Percent_Mod
         {
             if (!Context.IsWorldReady)
                 return;
+
+            Crop a;
 
             TaskManager instance = TaskManager.Instance;
 
