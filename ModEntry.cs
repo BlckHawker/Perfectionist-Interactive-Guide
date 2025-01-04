@@ -103,6 +103,7 @@ namespace Stardew_100_Percent_Mod
                 return;
             // print button presses to the console window
 
+            //todo refactor this so it works when the player harvests a crop
             if (e.Button == SButton.Space)
             {
                 TaskManager instance = TaskManager.Instance;
