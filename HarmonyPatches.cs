@@ -23,11 +23,11 @@ namespace Stardew_100_Percent_Mod
         }
 
         // patches need to be static!
-        internal static void Harvest_Postfix(int xTile, int yTile, HoeDirt soil, JunimoHarvester junimoHarvester = null, bool isForcedScytheHarvest = false)
+        internal static void Harvest_Postfix(Crop __instance)
         {
             try
             {
-                Log($"A crop has been harvested"); // your patch logic here
+                Log($"A crop with an unqualified id of {__instance.indexOfHarvest.Value} has been harvested");
             }
             catch (Exception ex)
             {
