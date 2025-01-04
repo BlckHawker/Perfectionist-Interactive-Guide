@@ -31,6 +31,7 @@ namespace Stardew_100_Percent_Mod
             helper.Events.GameLoop.SaveLoaded += SaveLoaded;
             helper.Events.Display.RenderedHud += OnRenderedHud;
             helper.Events.Display.Rendered += Rendered;
+            helper.Events.Input.ButtonPressed += OnButtonPressed;
 
             Menu.SetMonitor(Monitor);
 
@@ -71,7 +72,7 @@ namespace Stardew_100_Percent_Mod
             }
 
 
-            instance.ResetItemDictionarys();
+            instance.PreFix();
 
             //Go through the decsion tree and check what the desired action is
             List<Action> actions = instance.roots.Select(root => (Action)root.MakeDecision() ).ToList();
@@ -91,6 +92,24 @@ namespace Stardew_100_Percent_Mod
             actions.Add(new Action($"Big Shed count: {bigSheds.Count(s => s.daysOfConstructionLeft.Value < 1)}"));
 
             Menu.SetTasks(actions);
+
+            instance.PostFix();
+        }
+
+        private void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
+        {
+            // ignore if player hasn't loaded a save yet
+            if (!Context.IsWorldReady)
+                return;
+            // print button presses to the console window
+
+            if (e.Button == SButton.Space)
+            {
+                TaskManager instance = TaskManager.Instance;
+                string id = "(O)24"; //Parsnip
+                instance.AddToGrowCropCount(id); 
+                Log($"The player has \"grown\" {instance.cropsGrownDictinary[id]} parsnips.");
+            }
         }
 
         private void OnRenderedHud(object? sender, RenderedHudEventArgs e) 

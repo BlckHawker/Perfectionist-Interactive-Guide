@@ -7,18 +7,26 @@ using StardewValley.Locations;
 using StardewValley.Objects;
 using StardewValley.Objects.Trinkets;
 using System;
+using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography.X509Certificates;
 using static Stardew_100_Percent_Mod.NPCManager;
+using static Stardew_100_Percent_Mod.TaskManager;
 
 namespace Stardew_100_Percent_Mod
 {
+    /*
+     * Test what happens if we have multiple tasks growing the same crop
+     */
+
     /// <summary>
     /// Manages the Tree of of taks needed in order to 100% the game
     /// </summary>
     internal class TaskManager
     {
         public static TaskManager Instance;
-        //todo implement a selector and sequence ckasses
+        //todo implement a selector and sequence classes
         private List<Task> tree;
         public List<DecisionTreeNode> roots { get; private set; }
 
@@ -40,8 +48,6 @@ namespace Stardew_100_Percent_Mod
         //action that tells the user to get money
         private GetMoneyAction getMoneyAction;
 
-
-       
         //Keeps track of how many of each item the user needs
         //Used so there aren't multiple tasks saying "Buy x items at store"
         //Example, there are two tasks that both rquire the user to get 15 seeds
@@ -55,6 +61,13 @@ namespace Stardew_100_Percent_Mod
         //key is the item id
         //value is the amount of that item that is free to use
         public Dictionary<string, int> InventoryItemReserveDictonary { get; private set; }
+
+        //Keeps track of the number of crops grown. Key is qualifiedItemId
+        //this is public for debugging purposes. It should be private
+        public Dictionary<string, int> cropsGrownDictinary;
+
+        //Keeps track of the desired amount of crops to be grown. Key is qualifiedItemId
+        private Dictionary<string, int> requiredCropsGrownDictinary;
 
         //how much money the player has to spare
         public int reservedMoney;
@@ -82,6 +95,7 @@ namespace Stardew_100_Percent_Mod
             LargeMilk,
             Milk,
             OstritchEgg,
+            Parsnip,
             ParsnipSeeds,
             VoidEgg,
             Wood
@@ -90,7 +104,7 @@ namespace Stardew_100_Percent_Mod
         //All item of the following item names lists are ordered by easiest to hardest to get
 
         //all of the eggs that are considered eggs for a cooking recipe
-        public readonly List<ItemName> EggList = new List<ItemName>() { ItemName.Egg, ItemName.BrownEgg, ItemName.LargeEgg, ItemName.BrownLargeEgg, 
+        public readonly List<ItemName> EggList = new List<ItemName>() { ItemName.Egg, ItemName.BrownEgg, ItemName.LargeEgg, ItemName.BrownLargeEgg,
                                                                 ItemName.DuckEgg, ItemName.VoidEgg, ItemName.OstritchEgg, ItemName.GoldenEgg  };
         //all of the milks that are considered milk for a cooking recipe
         public readonly List<ItemName> MilkList = new List<ItemName>() { ItemName.Milk, ItemName.GoatMilk, ItemName.LargeMilk, ItemName.LargeGoatMilk };
@@ -108,10 +122,12 @@ namespace Stardew_100_Percent_Mod
 
             Instance.requiredItemsDictionary = new Dictionary<string, int>();
             Instance.InventoryItemReserveDictonary = new Dictionary<string, int>();
+            Instance.requiredCropsGrownDictinary = new Dictionary<string, int>();
+            Instance.cropsGrownDictinary = new Dictionary<string, int>();
 
             Instance.getMoneyAction = new GetMoneyAction(Instance.GetDesiredMoneyAmount);
 
-  
+
             Instance.ItemIds = new Dictionary<ItemName, string>()
             {
                 { ItemName.BrownEgg, "(O)180"},
@@ -127,6 +143,7 @@ namespace Stardew_100_Percent_Mod
                 { ItemName.LargeMilk, "(O)186"},
                 { ItemName.Milk, "(O)184"},
                 { ItemName.OstritchEgg, "(O)289"},
+                { ItemName.Parsnip, "(O)24" },
                 { ItemName.ParsnipSeeds, "(O)472"},
                 { ItemName.Wood, "(O)388"},
                 { ItemName.VoidEgg, "(O)305" }
@@ -137,7 +154,7 @@ namespace Stardew_100_Percent_Mod
                 .Where(i => !Instance.ItemIds.ContainsKey((ItemName)i))
                 .Select(i => (ItemName)i).ToList();
 
-            if(missingItemIds.Count > 0)
+            if (missingItemIds.Count > 0)
             {
                 throw new Exception($"The following keys are missing in \"ItemIds\": {string.Join(", ", missingItemIds)}");
             }
@@ -147,7 +164,7 @@ namespace Stardew_100_Percent_Mod
 
             Instance.dummyItems = new List<DummyItem>();
 
-            foreach(ItemName k in Instance.ItemIds.Keys)
+            foreach (ItemName k in Instance.ItemIds.Keys)
             {
                 Instance.dummyItems.Add(GetDummyItem(k));
             }
@@ -162,10 +179,9 @@ namespace Stardew_100_Percent_Mod
 
             DecisionTreeNode getLevel3House = GetHouseUpgrade(3);
 
+            DecisionTreeNode growCrop = GrowCrop(ItemName.Parsnip, 5);
 
-            Instance.roots  = new List<DecisionTreeNode>() { cookOmelet };
-
-            //Instance.roots = new List<DecisionTreeNode>(new[] { cookOmelet, craftChest, parsnipSeedsTree, becomeFriendsWithJas });
+            Instance.roots = new List<DecisionTreeNode>() { growCrop, growCrop };
         }
 
         /// <summary>
@@ -220,7 +236,7 @@ namespace Stardew_100_Percent_Mod
         /// <param name="desiredAmount">the amount the player needs to have of at least one of the items</param>
         /// <returns></returns>
         private static List<Decision> CreateIngrediantTree(List<ItemName> itemNames, int desiredAmount)
-        { 
+        {
             List<Decision.DecisionDelegate> checks = Instance.GetDecisionChecks(itemNames, desiredAmount);
             List<Decision> tree = itemNames.Select((egg, index) => new Decision(checks[index])).ToList();
 
@@ -247,6 +263,40 @@ namespace Stardew_100_Percent_Mod
             }).ToList();
         }
 
+        private static DecisionTreeNode GrowCrop(ItemName itemName, int desiredAmount)
+        {
+            return GrowCrop(Instance.ItemIds[itemName], desiredAmount);
+        }
+
+        /// <summary>
+        /// Task to grow a specifc crop
+        /// </summary>
+        /// <param name="qualifiedItemId">The id of the crop</param>
+        /// <param name="desiredAmount">The amount of the crop to grow</param>
+        /// <returns></returns>
+        private static DecisionTreeNode GrowCrop(string qualifiedItemId, int desiredAmount)
+        {
+            Item item = ItemLocator.GetItem(qualifiedItemId);
+            DummyItem dummyItem = Instance.dummyItems.First(i => i.QualifiedItemId == qualifiedItemId);
+            string GetAction()
+            {
+                int currentAmountGrown = Instance.cropsGrownDictinary.ContainsKey(qualifiedItemId) ? Instance.cropsGrownDictinary[qualifiedItemId] : 0;
+                return $"Grow {Instance.requiredCropsGrownDictinary[qualifiedItemId] - currentAmountGrown} {item?.Name ?? dummyItem.DisplayName}";
+            }
+
+            string parsnipId = Instance.ItemIds[ItemName.Parsnip];
+            bool GrownEnoughCrops()
+            {
+                return Instance.PlayerHasGrownDesiredAmountOfCrop(parsnipId);
+            }
+
+            Decision decision = new Decision(completeAction, 
+                                        new GrowCropAction(qualifiedItemId, desiredAmount, GetAction), 
+                                        GrownEnoughCrops, 
+                                        true);
+            return new GrowCropNode(decision, qualifiedItemId, desiredAmount);
+        }
+
         /// <summary>
         /// Tree branch that will tell the user how to get a specific item in the game
         /// </summary>
@@ -257,11 +307,8 @@ namespace Stardew_100_Percent_Mod
         /// <returns></returns>
         public static DecisionTreeNode GetProducableItemTree(string qualifiedItemId, int desiredAmount, DecisionTreeNode? actionAfterward = null, bool decreaseCount = true)
         { 
-
             Item item = ItemLocator.GetItem(qualifiedItemId);
             DummyItem dummyItem = Instance.dummyItems.First(i => i.QualifiedItemId == qualifiedItemId);
-
-
 
             #region Delegate Methods
 
@@ -716,6 +763,13 @@ namespace Stardew_100_Percent_Mod
             }
             return itemCount >= desiredAmount;
         }
+
+        private bool PlayerHasGrownDesiredAmountOfCrop(string qualifiedItemId)
+        { 
+            cropsGrownDictinary.TryGetValue(qualifiedItemId, out int grownAmount);
+            requiredCropsGrownDictinary.TryGetValue(qualifiedItemId, out int requiredGrownAmount);
+            return requiredGrownAmount > 0 && grownAmount >= requiredGrownAmount;
+        }
         #endregion
 
         #region Delegate Actions
@@ -788,6 +842,7 @@ namespace Stardew_100_Percent_Mod
 
             return actions;
         }
+
         
         /// <summary>
         /// Combines a list of duplicate actions into one
@@ -799,6 +854,7 @@ namespace Stardew_100_Percent_Mod
             //combine special actions
             actions = CombineItemActions(actions);
             actions = CombineMoneyActions(actions);
+            actions = CombineGrowCropsActions(actions);
 
             //combine the regular actions
 
@@ -823,6 +879,20 @@ namespace Stardew_100_Percent_Mod
             }
 
             return newList;
+        }
+
+        public void UpdateRequiredCropsGrownDictionary(string qualifiedItemId, int count)
+        {
+            //increment the required number of crops to grow
+            if (Instance.requiredCropsGrownDictinary.ContainsKey(qualifiedItemId))
+            {
+                Instance.requiredCropsGrownDictinary[qualifiedItemId] += count;
+            }
+
+            else
+            {
+                Instance.requiredCropsGrownDictinary[qualifiedItemId] = count;
+            }
         }
 
 
@@ -872,12 +942,16 @@ namespace Stardew_100_Percent_Mod
             reservedMoney = Math.Clamp(reservedMoney + count, 0, int.MaxValue);
         }
 
-        public void ResetItemDictionarys()
+        /// <summary>
+        /// Things to do right before evaluating each task
+        /// </summary>
+        public void PreFix()
         {
             requiredMoney = 0;
             reservedMoney = Game1.player.Money;
             requiredItemsDictionary.Clear();
             InventoryItemReserveDictonary.Clear();
+            requiredCropsGrownDictinary.Clear();
 
             //foreach item in the world, count the amount of it appears in the player's inventory
             Utility.ForEachItem(delegate (Item item)
@@ -895,7 +969,7 @@ namespace Stardew_100_Percent_Mod
             }
 
             //check the shop menu's cursor to see if the player has bought the item in said shop
-            Item shopItem = ItemLocator.ShopCursorItem();
+            Item? shopItem = ItemLocator.ShopCursorItem();
             if (shopItem != null)
             {
                 string id = shopItem.QualifiedItemId;
@@ -906,6 +980,38 @@ namespace Stardew_100_Percent_Mod
             //order by count in decending order
             OrderInventoryItemReserveDictonary();
             return;
+        }
+
+        /// <summary>
+        /// Things to do after evaluating each task
+        /// </summary>
+        public void PostFix()
+        {
+            //foreach id in cropsGrownDictinary, if the id can't be found or the value is 0 in requiredCropsGrownDictinary, set the value to 0 in cropsGrownDictinary
+
+            IEnumerable<string> targetedKeys = cropsGrownDictinary.Keys.Where(key => cropsGrownDictinary[key] > 0).ToList();
+
+            foreach (string key in targetedKeys)
+            { 
+                if (!requiredCropsGrownDictinary.ContainsKey(key) || requiredCropsGrownDictinary[key] == 0)
+                {
+                    cropsGrownDictinary[key] = 0;
+                }
+            }
+        }
+
+        public void AddToGrowCropCount(string qualifiedItemId)
+        {
+
+            if (!cropsGrownDictinary.ContainsKey(qualifiedItemId))
+            {
+                cropsGrownDictinary[qualifiedItemId] = 1;
+            }
+
+            else
+            {
+                cropsGrownDictinary[qualifiedItemId]++;
+            }
         }
 
         /// <summary>
@@ -941,9 +1047,9 @@ namespace Stardew_100_Percent_Mod
             for (int i = 0; i < actions.Count; i++)
             {
                 Action action = actions[i];
-                if (action is GetMoneyAction)
+                if (action is GetMoneyAction getMoneyAction)
                 {
-                    moneyRequired += ((GetMoneyAction)action).MoneyRequired;
+                    moneyRequired += getMoneyAction.MoneyRequired;
                     if (index == -1)
                     {
                         index = i;
@@ -975,14 +1081,78 @@ namespace Stardew_100_Percent_Mod
             for (int i = 0; i < actions.Count; i++)
             {
                 Action action = actions[i];
-                if (action is GetItemAction)
+                if (action is GetItemAction getItemAction)
                 {
-                    GetItemAction getItemAction = (GetItemAction)action;
-
                     if (getItemAction.QualifiedItemId == qualifiedItemId && !foundItemAction)
                     {
                         foundItemAction = true;
                         newList.Add(getItemAction);
+                    }
+                }
+
+                else
+                {
+                    newList.Add(action);
+                }
+            }
+
+            return newList;
+        }
+
+        private List<Action> CombineGrowCropsActions(List<Action> actions)
+        {
+
+            List<string> cropIds = new List<string>();
+            //the index the first GrowCropAction of the same qualifiedItemId is found
+
+            //get all the ids of the GrowCropAction actions (and their index)
+            for (int i = 0; i < actions.Count; i++)
+            {
+                Action action = actions[i];
+                if (action is GrowCropAction)
+                {
+                    string qualifiedItemId = ((GrowCropAction)action).QualifiedItemId;
+
+                    if (!cropIds.Contains(qualifiedItemId))
+                    {
+                        cropIds.Add(qualifiedItemId);
+                    }
+                }
+            }
+
+            //combine all of the GrowCropActions
+            foreach (string id in cropIds)
+            {
+                actions = CombineGrowCropsActions(id, actions);
+            }
+
+            return actions;
+        }
+
+        private List<Action> CombineGrowCropsActions(string qualifiedItemId, List<Action> actions)
+        {
+            List<Action> newList = new List<Action>();
+            bool foundItemAction = false;
+            GrowCropAction gropCropAction = null;
+            for (int i = 0; i < actions.Count; i++)
+            {
+                Action action = actions[i];
+                if (action is GrowCropAction a)
+                {
+                    if (a.QualifiedItemId == qualifiedItemId)
+                    {
+                        if (!foundItemAction)
+                        {
+                            foundItemAction = true;
+                            gropCropAction = a;
+                            newList.Add(gropCropAction);
+                        }
+
+                        else
+                        {
+                            gropCropAction.DesiredAmount += a.DesiredAmount;
+                        }
+                        
                     }
                 }
 
