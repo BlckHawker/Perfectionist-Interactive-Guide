@@ -179,9 +179,16 @@ namespace Stardew_100_Percent_Mod
 
             DecisionTreeNode getLevel3House = GetHouseUpgrade(3);
 
-            DecisionTreeNode growCrop = GrowCrop(ItemName.Parsnip, 5);
+            Instance.roots = new List<DecisionTreeNode>() { Test(), Test() };
+        }
 
-            Instance.roots = new List<DecisionTreeNode>() { growCrop, growCrop };
+        /// <summary>
+        /// Tests growing crops works
+        /// </summary>
+        /// <returns></returns>
+        private static DecisionTreeNode Test()
+        {
+            return GrowCrop(ItemName.Parsnip, 5);
         }
 
         /// <summary>
@@ -268,12 +275,6 @@ namespace Stardew_100_Percent_Mod
             return GrowCrop(Instance.ItemIds[itemName], desiredAmount);
         }
 
-        /// <summary>
-        /// Task to grow a specifc crop
-        /// </summary>
-        /// <param name="qualifiedItemId">The id of the crop</param>
-        /// <param name="desiredAmount">The amount of the crop to grow</param>
-        /// <returns></returns>
         private static DecisionTreeNode GrowCrop(string qualifiedItemId, int desiredAmount)
         {
             Item item = ItemLocator.GetItem(qualifiedItemId);
@@ -290,10 +291,10 @@ namespace Stardew_100_Percent_Mod
                 return Instance.PlayerHasGrownDesiredAmountOfCrop(parsnipId);
             }
 
-            Decision decision = new Decision(completeAction, 
-                                        new GrowCropAction(qualifiedItemId, desiredAmount, GetAction), 
-                                        GrownEnoughCrops, 
-                                        true);
+
+            Decision decision = new Decision(GrownEnoughCrops, true);
+            decision.SetTrueNode(completeAction);
+            decision.SetFalseNode(new GrowCropAction(qualifiedItemId, GetAction));
             return new GrowCropNode(decision, qualifiedItemId, desiredAmount);
         }
 
@@ -1133,26 +1134,18 @@ namespace Stardew_100_Percent_Mod
         {
             List<Action> newList = new List<Action>();
             bool foundItemAction = false;
-            GrowCropAction gropCropAction = null;
             for (int i = 0; i < actions.Count; i++)
             {
                 Action action = actions[i];
-                if (action is GrowCropAction a)
+                if (action is GrowCropAction gropCropAction)
                 {
-                    if (a.QualifiedItemId == qualifiedItemId)
+                    if (gropCropAction.QualifiedItemId == qualifiedItemId)
                     {
                         if (!foundItemAction)
                         {
                             foundItemAction = true;
-                            gropCropAction = a;
                             newList.Add(gropCropAction);
                         }
-
-                        else
-                        {
-                            gropCropAction.DesiredAmount += a.DesiredAmount;
-                        }
-                        
                     }
                 }
 

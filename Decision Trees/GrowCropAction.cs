@@ -9,11 +9,9 @@ namespace Stardew_100_Percent_Mod.Decision_Trees
     internal class GrowCropAction : Action
     {
         public string QualifiedItemId { get; private set; }
-        public int DesiredAmount;
 
-        public GrowCropAction(string qualifiedItemId, int desiredAmount, ChangeDisplayNameDelegate changeDisplayNameMethod) : base(changeDisplayNameMethod)
+        public GrowCropAction(string qualifiedItemId, ChangeDisplayNameDelegate changeDisplayNameMethod) : base(changeDisplayNameMethod)
         {
-            DesiredAmount = desiredAmount;
             QualifiedItemId = qualifiedItemId;
         }
     }

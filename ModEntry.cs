@@ -17,7 +17,6 @@ namespace Stardew_100_Percent_Mod
     internal sealed class ModEntry : Mod
     {
         private readonly Stopwatch renderWatch = new();
-        private string RenderTime = "--";
         private string framerate = "--";
         private int frames = 0;
         /*********
@@ -128,13 +127,6 @@ namespace Stardew_100_Percent_Mod
 
         private void Rendered(object? sender, RenderedEventArgs e)
         {
-            this.renderWatch.Stop();
-            double ms = this.renderWatch.Elapsed.TotalMilliseconds;
-            if (Game1.ticks % 5 == 0 || ms > 5)
-            {
-                this.RenderTime = $"Render time: {ms:00.00} ms.";
-            }
-
             this.frames += 1;
         }
 
