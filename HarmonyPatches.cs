@@ -23,11 +23,16 @@ namespace Stardew_100_Percent_Mod
         }
 
         // patches need to be static!
-        internal static void Harvest_Postfix(Crop __instance)
+        internal static void Harvest_Postfix(Crop __instance, ref bool __result)
         {
             try
             {
-                Log($"A crop with an unqualified id of {__instance.indexOfHarvest.Value} has been harvested");
+                //Make it so this only gets called when the crop is fully grown
+                if (__result)
+                { 
+                    Log($"A crop with an unqualified id of {__instance.indexOfHarvest.Value} has been harvested");
+                    TaskManager.Instance.AddToGrowCropCount($"(O){__instance.indexOfHarvest.Value}");
+                }
             }
             catch (Exception ex)
             {
