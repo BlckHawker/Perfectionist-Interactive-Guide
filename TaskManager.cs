@@ -1,18 +1,14 @@
-﻿using Stardew_100_Percent_Mod.Decision_Trees;
+﻿using Microsoft.Xna.Framework;
+using Stardew_100_Percent_Mod.Decision_Trees;
 using StardewModdingAPI;
-using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.Buildings;
 using StardewValley.Locations;
 using StardewValley.Objects;
-using StardewValley.Objects.Trinkets;
-using System;
-using System.Diagnostics;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography.X509Certificates;
+using StardewValley.TerrainFeatures;
+using System.Collections;
+using System.Collections.Generic;
 using static Stardew_100_Percent_Mod.NPCManager;
-using static Stardew_100_Percent_Mod.TaskManager;
 
 namespace Stardew_100_Percent_Mod
 {
@@ -291,11 +287,39 @@ namespace Stardew_100_Percent_Mod
                 return Instance.PlayerHasGrownDesiredAmountOfCrop(parsnipId);
             }
 
+            bool HasCropPlanted()
+            {
+                Farm farm = (Farm)GetLocation("Farm");
 
-            Decision decision = new Decision(GrownEnoughCrops, true);
-            decision.SetTrueNode(completeAction);
-            decision.SetFalseNode(new GrowCropAction(qualifiedItemId, GetAction));
-            return new GrowCropNode(decision, qualifiedItemId, desiredAmount);
+                //Under the assumption that all qualified ids start with (O) followed by the unqualified id
+                string desiredUnqualifiedId = qualifiedItemId.Replace("(O)", "");
+                var plantedCrops = farm.terrainFeatures.Pairs.Where(pair => pair.Value is HoeDirt hoeDirt && hoeDirt.crop != null).Select(pair => ((HoeDirt)pair.Value).crop).ToList();
+                var desiredCrops = plantedCrops.Where(crop => crop.indexOfHarvest.Value == desiredUnqualifiedId).ToList();
+
+                //the number of crops the player should have planted is required amount - amount harvested
+                //this may break when having multiple of the same task with the same crop
+                Instance.requiredCropsGrownDictinary.TryGetValue(qualifiedItemId, out int requiredAmout);
+
+                Instance.logMethod($"Requires: {requiredAmout}");
+                Instance.logMethod($"Has planted: {desiredCrops.Count}");
+
+
+                return (requiredAmout - desiredCrops.Count) <= 0;
+            }
+
+            GrowCropAction action = new GrowCropAction(qualifiedItemId, GetAction);
+
+
+            //Does the player have at least the desired amount of the crop planted
+            Decision cropPlanted = new Decision(HasCropPlanted);
+            cropPlanted.SetTrueNode(new Action("Player has crop planted"));
+            cropPlanted.SetFalseNode(new Action("Player does not have crop planted"));
+
+            //Has the player harvested the desired amount of crops?
+            Decision grownEnoughCrops = new Decision(GrownEnoughCrops, true);
+            grownEnoughCrops.SetTrueNode(completeAction);
+            grownEnoughCrops.SetFalseNode(cropPlanted);
+            return new GrowCropNode(grownEnoughCrops, qualifiedItemId, desiredAmount);
         }
 
         /// <summary>
@@ -334,7 +358,7 @@ namespace Stardew_100_Percent_Mod
             //Return the amount of items he player should get from that location
             string GetItemCountFromLocation(string uniqueLocationName)
             {
-                GameLocation location = Game1.locations.First(l => l.NameOrUniqueName == uniqueLocationName);
+                GameLocation location = GetLocation(uniqueLocationName);
 
                 Chest chest = ItemLocator.GetChestsWithItem(location, qualifiedItemId).First();
 
@@ -365,7 +389,7 @@ namespace Stardew_100_Percent_Mod
             //A certain location has the desired item
             bool LocationHasItem(string uniqueLocationName)
             {
-                GameLocation location = Game1.locations.First(l => l.NameOrUniqueName == uniqueLocationName);
+                GameLocation location = GetLocation(uniqueLocationName);
                 return ItemLocator.LocationHasItem(location, qualifiedItemId);
             }
 
@@ -413,6 +437,16 @@ namespace Stardew_100_Percent_Mod
 
             return new GetItemNode(playerHasItemInInventory, qualifiedItemId, desiredAmount);
             #endregion
+        }
+
+        /// <summary>
+        /// Gets a location that matches the given the uniqueLocationName
+        /// </summary>
+        /// <param name="uniqueLocationName"></param>
+        /// <returns></returns>
+        private static GameLocation GetLocation(string uniqueLocationName)
+        {
+            return Game1.locations.First(l => l.NameOrUniqueName == uniqueLocationName);
         }
 
         /// <summary>
