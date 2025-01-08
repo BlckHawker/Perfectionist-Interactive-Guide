@@ -4,11 +4,13 @@
  */
 
 using Microsoft.Xna.Framework;
+using Netcode;
 using Stardew_100_Percent_Mod.Decision_Trees;
 using StardewModdingAPI;
 using StardewValley;
 using StardewValley.BellsAndWhistles;
 using StardewValley.Buildings;
+using StardewValley.GameData.Crops;
 using StardewValley.Locations;
 using StardewValley.Network;
 using StardewValley.Objects;
@@ -26,6 +28,7 @@ namespace Stardew_100_Percent_Mod
     /// </summary>
     internal class TaskManager
     {
+        const int MONTH_DAY_COUNT = 28; //The number of days in a month
         public static TaskManager Instance;
         //todo implement a selector and sequence classes
         private List<Task> tree;
@@ -289,6 +292,39 @@ namespace Stardew_100_Percent_Mod
                 return plantedCrops.Where(crop => crop.indexOfHarvest.Value == desiredUnqualifiedId).ToList();
             }
 
+            IEnumerable<Crop> GetDesiredFullyGrownCrops()
+            {
+                return GetDesiredCrops()
+                .Where(crop =>
+                {
+                    bool cropReady1 = crop.currentPhase.Value >= crop.phaseDays.Count - 1
+                        && (!crop.fullyGrown.Value || crop.dayOfCurrentPhase.Value <= 0);
+
+                    int totalDays = crop.phaseDays.Take(crop.phaseDays.Count() - 1).Sum();
+                    int growProgress = crop.phaseDays.Take(crop.currentPhase.Value).Sum() + crop.dayOfCurrentPhase.Value;
+
+                    bool cropReady2 = growProgress >= totalDays;
+
+                    return cropReady1 || cropReady2;
+                });
+            }
+
+            //order by how fast the crop is going to grow
+            IEnumerable<Crop> GetDesiredNotFullyGrownCrops()
+            {
+                return GetDesiredCrops().Except(GetDesiredFullyGrownCrops()).OrderBy(crop =>
+                {
+                    int totalDays = crop.phaseDays.Take(crop.phaseDays.Count() - 1).Sum();
+                    int growProgress = crop.phaseDays.Take(crop.currentPhase.Value).Sum() + crop.dayOfCurrentPhase.Value;
+                    return totalDays - growProgress;
+                });
+            }
+
+            IEnumerable<Crop> GetUnWateredDesiredCrops()
+            {
+                return GetDesiredNotFullyGrownCrops().Where(crop => !crop.Dirt.isWatered() && crop.Dirt.needsWatering());
+            }
+
             string HarvestCropAction()
             {
                 Crop crop = GetDesiredFullyGrownCrops().First();
@@ -311,6 +347,8 @@ namespace Stardew_100_Percent_Mod
                 return $"Water {Instance.ItemIds.First(kv => kv.Value == qualifiedItemId).Key} at location ({position.X},{position.Y}) on the {location}";
             }
 
+            
+
             //Checks if the player has enough
             bool GrownEnoughCrops()
             {
@@ -331,37 +369,63 @@ namespace Stardew_100_Percent_Mod
                 return (requiredAmout - desiredCrops.Count) <= 0;
             }
 
-            IEnumerable<Crop> GetDesiredFullyGrownCrops()
+            //Can this crop grown this season?
+            //If yes, are there enough days to grow the crop?
+            //If not, can the crop grown next season?
+            bool CropCanGrow(Crop? crop = null)
             {
-                return GetDesiredCrops()
-                .Where(crop =>
+                CropData data;
+                Crop.TryGetData(seedId, out data);
+
+                #region Can Crop Grown This Season
+                if (!Crop.IsInSeason(location, seedId))
                 {
-                    bool cropReady1 = crop.currentPhase.Value >= crop.phaseDays.Count - 1
-                        && (!crop.fullyGrown.Value || crop.dayOfCurrentPhase.Value <= 0);
+                    return false;
+                }
 
-                    int totalDays = crop.phaseDays.Take(crop.phaseDays.Count() - 1).Sum();
-                    int growProgress = crop.phaseDays.Take(crop.currentPhase.Value).Sum() + crop.dayOfCurrentPhase.Value;
+                int currentPhase;
+                int dayOfCurrentPhase;
 
-                    bool cropReady2 = growProgress >= totalDays;
-
-                    return cropReady1 || cropReady2;
-                });
-            }
-
-            //order by how fast the crop is going to grow
-            IEnumerable<Crop> GetDesiredNotFullyGrownCrops()
-            { 
-                return GetDesiredCrops().Except(GetDesiredFullyGrownCrops()).OrderBy(crop =>
+                NetIntList phaseDays = new NetIntList();
+                if (crop == null)
                 {
-                    int totalDays = crop.phaseDays.Take(crop.phaseDays.Count() - 1).Sum();
-                    int growProgress = crop.phaseDays.Take(crop.currentPhase.Value).Sum() + crop.dayOfCurrentPhase.Value;
-                    return totalDays - growProgress;
-                });
-            }
+                    phaseDays.AddRange(data.DaysInPhase);
+                    phaseDays.Add(99999);
+                    currentPhase = 0;
+                    dayOfCurrentPhase = 0;
+                }
 
-            IEnumerable<Crop> GetUnWateredDesiredCrops()
-            {
-                return GetDesiredNotFullyGrownCrops().Where(crop => !crop.Dirt.isWatered() && crop.Dirt.needsWatering());
+                else
+                {
+                    phaseDays = crop.phaseDays;
+                    currentPhase = crop.currentPhase.Value;
+                    dayOfCurrentPhase = crop.dayOfCurrentPhase.Value;
+                }
+
+                //is there enough days within this seaon for the crop to grow
+                int totalDays = phaseDays.Take(phaseDays.Count() - 1).Sum();
+                int growProgress = phaseDays.Take(currentPhase).Sum() + dayOfCurrentPhase;
+                int daysLeftForCropToGrow = totalDays - growProgress;
+                int daysLeftInSeason = MONTH_DAY_COUNT - Game1.dayOfMonth;
+
+                if (daysLeftInSeason >= daysLeftForCropToGrow)
+                {
+                    return true;
+                }
+                #endregion
+
+                #region Can Crop Grow Next Season
+                Season nextSeason = (Season)((int)(location.GetSeason() + 1) % Enum.GetNames(typeof(Season)).Length);
+
+                //if the seed ignores seasons in a specific location, then it can grow next seasn
+                if (location.SeedsIgnoreSeasonsHere())
+                {
+                    return true;
+                }
+
+                return data.Seasons?.Contains(nextSeason) ?? false;
+                #endregion
+
             }
 
             bool CropReadyForHarvest()
@@ -374,41 +438,7 @@ namespace Stardew_100_Percent_Mod
             bool SalvageableCrop()
             {
                 Crop crop = GetDesiredNotFullyGrownCrops().FirstOrDefault();
-
-                //if the crop is not planted, say it's not possible to grow the crop
-                if (crop == null)
-                {
-                    return false;
-                }
-
-                //is there enough days within this seaon for the crop to grow
-                int daysLeftInSeason = 28 - Game1.dayOfMonth;
-                int totalDays = crop.phaseDays.Take(crop.phaseDays.Count() - 1).Sum();
-                int growProgress = crop.phaseDays.Take(crop.currentPhase.Value).Sum() + crop.dayOfCurrentPhase.Value;
-                int daysLeftForCropToGrow = totalDays - growProgress;
-
-                if (daysLeftInSeason >= daysLeftForCropToGrow)
-                {
-                    return true;
-                }
-
-                //if not, can the crop grow next season
-                bool canGrownNextSeason = false;
-
-                Season nextSeason = (Season)((int)(location.GetSeason() + 1) % Enum.GetNames(typeof(Season)).Length);
-
-                //if the seed ignores seasons in a specific location, then it can grow next seasn
-                if (location.SeedsIgnoreSeasonsHere())
-                {
-                    canGrownNextSeason = true;
-                }
-
-                else if (Crop.TryGetData(seedId, out var data))
-                {
-                    canGrownNextSeason = data.Seasons?.Contains(nextSeason) ?? false;
-                }
-
-                return canGrownNextSeason;
+                return CropCanGrow(crop);
             }
 
             //There is at least one crop in the ground that is not watered
@@ -419,12 +449,18 @@ namespace Stardew_100_Percent_Mod
 
             GrowCropAction action = new GrowCropAction(qualifiedItemId, GrowCropAction);
 
+            //Can crop grow this seaason without crop in ground
+            Decision cropGrowsThisSeason = new Decision(() => CropCanGrow());
+            cropGrowsThisSeason.SetTrueNode(new Action("Crop can grow"));
+            cropGrowsThisSeason.SetFalseNode(new Action("Crop can't grow"));
+
+            return new GrowCropNode(cropGrowsThisSeason, qualifiedItemId, desiredAmount);
+
             //There is a crop in the ground that is not watered
             Decision unwateredCrop = new Decision(UnwateredCrop);
             unwateredCrop.SetTrueNode(new Action(WaterCropAction));
-            unwateredCrop.SetFalseNode(new Action(""));
+            unwateredCrop.SetFalseNode(cropGrowsThisSeason);
 
-            return new GrowCropNode(unwateredCrop, qualifiedItemId, desiredAmount);
 
 
             //There is at least one crop that can be fully grown if the player continues to water it before it dies

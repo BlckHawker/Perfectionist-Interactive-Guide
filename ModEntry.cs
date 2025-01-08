@@ -81,9 +81,12 @@ namespace Stardew_100_Percent_Mod
             actions.Insert(0, new Action(framerate));
             actions = instance.CombineActions(actions);
 
+
             Farm farm = (Farm)TaskManager.GetLocation("Farm");
             //check if the player has a shed on the farm
             IEnumerable<Building> buildings = farm.buildings;
+
+
 
             IEnumerable<Building> sheds = farm.buildings.Where(b => b.buildingType.Value == "Shed");
             IEnumerable<Building> bigSheds = farm.buildings.Where(b => b.buildingType.Value == "Big Shed");
