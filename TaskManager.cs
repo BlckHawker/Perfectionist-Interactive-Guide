@@ -297,12 +297,19 @@ namespace Stardew_100_Percent_Mod
                 return $"Harvest {Instance.ItemIds.First(kv => kv.Value == qualifiedItemId).Key} at location ({position.X},{position.Y}) on the {location}";
             }
 
-            string GetAction()
+            string GrowCropAction()
             {
                 int currentAmountGrown = Instance.cropsGrownDictinary.ContainsKey(qualifiedItemId) ? Instance.cropsGrownDictinary[qualifiedItemId] : 0;
                 return $"Grow {Instance.requiredCropsGrownDictinary[qualifiedItemId] - currentAmountGrown} {item?.Name ?? dummyItem.DisplayName}";
             }
 
+            string WaterCropAction()
+            {
+                Crop crop = GetUnWateredDesiredCrops().First();
+                Vector2 position = crop.tilePosition;
+                string location = crop.currentLocation.ToString().Replace("StardewValley.", "");
+                return $"Water {Instance.ItemIds.First(kv => kv.Value == qualifiedItemId).Key} at location ({position.X},{position.Y}) on the {location}";
+            }
 
             //Checks if the player has enough
             bool GrownEnoughCrops()
@@ -352,6 +359,11 @@ namespace Stardew_100_Percent_Mod
                 });
             }
 
+            IEnumerable<Crop> GetUnWateredDesiredCrops()
+            {
+                return GetDesiredNotFullyGrownCrops().Where(crop => !crop.Dirt.isWatered() && crop.Dirt.needsWatering());
+            }
+
             bool CropReadyForHarvest()
             {
                 return GetDesiredFullyGrownCrops().Any();
@@ -359,7 +371,7 @@ namespace Stardew_100_Percent_Mod
 
 
             //If a crop that is currenlty growing can be harvested before the season is over
-            bool SavalbeCrop()
+            bool SalvageableCrop()
             {
                 Crop crop = GetDesiredNotFullyGrownCrops().FirstOrDefault();
 
@@ -399,17 +411,27 @@ namespace Stardew_100_Percent_Mod
                 return canGrownNextSeason;
             }
 
+            //There is at least one crop in the ground that is not watered
+            bool UnwateredCrop()
+            {
+                return GetUnWateredDesiredCrops().Any();
+            }
 
-            GrowCropAction action = new GrowCropAction(qualifiedItemId, GetAction);
+            GrowCropAction action = new GrowCropAction(qualifiedItemId, GrowCropAction);
+
+            //There is a crop in the ground that is not watered
+            Decision unwateredCrop = new Decision(UnwateredCrop);
+            unwateredCrop.SetTrueNode(new Action(WaterCropAction));
+            unwateredCrop.SetFalseNode(new Action(""));
+
+            return new GrowCropNode(unwateredCrop, qualifiedItemId, desiredAmount);
+
 
             //There is at least one crop that can be fully grown if the player continues to water it before it dies
-            Decision savalableCrop = new Decision(SavalbeCrop);
-            savalableCrop.SetTrueNode(new Action("Crop can be watered to be harvested"));
+            Decision savalableCrop = new Decision(SalvageableCrop);
+            savalableCrop.SetTrueNode(unwateredCrop);
             //Wait til it's the right season again
             savalableCrop.SetFalseNode(new Action(""));
-
-            return new GrowCropNode(savalableCrop, qualifiedItemId, desiredAmount);
-
 
             //There is at least a desired crop ready for harvest
             Decision cropReadyForHarvest = new Decision(CropReadyForHarvest);
