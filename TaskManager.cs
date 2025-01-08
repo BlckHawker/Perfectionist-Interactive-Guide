@@ -4,18 +4,17 @@ using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Buildings;
 using StardewValley.Locations;
+using StardewValley.Network;
 using StardewValley.Objects;
 using StardewValley.TerrainFeatures;
 using System.Collections;
 using System.Collections.Generic;
+using static Stardew_100_Percent_Mod.Action;
 using static Stardew_100_Percent_Mod.NPCManager;
+using static Stardew_100_Percent_Mod.TaskManager;
 
 namespace Stardew_100_Percent_Mod
 {
-    /*
-     * Test what happens if we have multiple tasks growing the same crop
-     */
-
     /// <summary>
     /// Manages the Tree of of taks needed in order to 100% the game
     /// </summary>
@@ -157,13 +156,7 @@ namespace Stardew_100_Percent_Mod
 
             Instance.dummyCraftingRecipes = DummyCraftingRecipe.GetAllRecipes();
             Instance.dummyCookingRecipes = DummyCookingRecipe.GetAllRecipes();
-
-            Instance.dummyItems = new List<DummyItem>();
-
-            foreach (ItemName k in Instance.ItemIds.Keys)
-            {
-                Instance.dummyItems.Add(GetDummyItem(k));
-            }
+            Instance.dummyItems = Instance.ItemIds.Select(kv => new DummyItem(kv.Value, kv.Key.ToString())).ToList();
 
             DecisionTreeNode parsnipSeedsTree = GetProducableItemTree(ItemName.ParsnipSeeds, 15);
 
@@ -185,17 +178,6 @@ namespace Stardew_100_Percent_Mod
         private static DecisionTreeNode Test()
         {
             return GrowCrop(ItemName.Parsnip, 5);
-        }
-
-        /// <summary>
-        /// Helper method to create a DummyItem out of an ItemName
-        /// </summary>
-        /// <param name="itemName"></param>
-        /// <returns></returns>
-        private static DummyItem GetDummyItem(ItemName itemName)
-        {
-            KeyValuePair<ItemName, string> kv = Instance.ItemIds.First(kv => kv.Key == itemName);
-            return new DummyItem(kv.Value, kv.Key.ToString());
         }
 
         /// <summary>
@@ -225,6 +207,9 @@ namespace Stardew_100_Percent_Mod
 
                     root = eggTree[0];
                     break;
+
+                default:
+                    throw new Exception($"A recipe with a name {recipeName} has not be implemented yet");
             }
 
             return root;
@@ -275,44 +260,79 @@ namespace Stardew_100_Percent_Mod
         {
             Item item = ItemLocator.GetItem(qualifiedItemId);
             DummyItem dummyItem = Instance.dummyItems.First(i => i.QualifiedItemId == qualifiedItemId);
+
+            IEnumerable<Crop> GetDesiredCrops()
+            {
+                Farm farm = (Farm)GetLocation("Farm");
+                //Under the assumption that all qualified ids start with (O) followed by the unqualified id
+                string desiredUnqualifiedId = qualifiedItemId.Replace("(O)", "");
+                IEnumerable<Crop> plantedCrops = farm.terrainFeatures.Pairs.Where(pair => pair.Value is HoeDirt hoeDirt && hoeDirt.crop != null).Select(pair => ((HoeDirt)pair.Value).crop).ToList();
+                return plantedCrops.Where(crop => crop.indexOfHarvest.Value == desiredUnqualifiedId).ToList();
+            }
+
+            string HarvestCropAction()
+            {
+                Crop crop = GetDesiredFullyGrownCrops().First();
+                Vector2 position = crop.tilePosition;
+                string location = crop.currentLocation.ToString().Replace("StardewValley.", "");
+                return $"Harvest {Instance.ItemIds.First(kv => kv.Value == qualifiedItemId).Key} at location ({position.X},{position.Y}) on the {location}";
+            }
+
             string GetAction()
             {
                 int currentAmountGrown = Instance.cropsGrownDictinary.ContainsKey(qualifiedItemId) ? Instance.cropsGrownDictinary[qualifiedItemId] : 0;
                 return $"Grow {Instance.requiredCropsGrownDictinary[qualifiedItemId] - currentAmountGrown} {item?.Name ?? dummyItem.DisplayName}";
             }
 
-            string parsnipId = Instance.ItemIds[ItemName.Parsnip];
+
+            //Checks if the player has enough
             bool GrownEnoughCrops()
             {
-                return Instance.PlayerHasGrownDesiredAmountOfCrop(parsnipId);
+                return Instance.PlayerHasGrownDesiredAmountOfCrop(qualifiedItemId);
             }
 
             bool HasCropPlanted()
             {
-                Farm farm = (Farm)GetLocation("Farm");
-
-                //Under the assumption that all qualified ids start with (O) followed by the unqualified id
-                string desiredUnqualifiedId = qualifiedItemId.Replace("(O)", "");
-                var plantedCrops = farm.terrainFeatures.Pairs.Where(pair => pair.Value is HoeDirt hoeDirt && hoeDirt.crop != null).Select(pair => ((HoeDirt)pair.Value).crop).ToList();
-                var desiredCrops = plantedCrops.Where(crop => crop.indexOfHarvest.Value == desiredUnqualifiedId).ToList();
+                List<Crop> desiredCrops = GetDesiredCrops().ToList();
 
                 //the number of crops the player should have planted is required amount - amount harvested
                 //this may break when having multiple of the same task with the same crop
                 Instance.requiredCropsGrownDictinary.TryGetValue(qualifiedItemId, out int requiredAmout);
 
-                Instance.logMethod($"Requires: {requiredAmout}");
-                Instance.logMethod($"Has planted: {desiredCrops.Count}");
-
+                //Instance.logMethod($"Requires: {requiredAmout}");
+                //Instance.logMethod($"Has planted: {desiredCrops.Count}");
 
                 return (requiredAmout - desiredCrops.Count) <= 0;
             }
 
+            IEnumerable<Crop> GetDesiredFullyGrownCrops()
+            {
+                return GetDesiredCrops().Where(crop => crop.currentPhase.Value >= crop.phaseDays.Count - 1
+                                        && (!crop.fullyGrown.Value || crop.dayOfCurrentPhase.Value <= 0));
+            }
+
+            
+            bool CropReadyForHarvest()
+            {
+                return GetDesiredFullyGrownCrops().Any();
+            }
+
+           
+
+
             GrowCropAction action = new GrowCropAction(qualifiedItemId, GetAction);
+
+            //There is at least a desired crop ready for harvest
+            Decision cropReadyForHarvest = new Decision(CropReadyForHarvest);
+            cropReadyForHarvest.SetTrueNode(new Action(HarvestCropAction));
+            cropReadyForHarvest.SetFalseNode(new Action("Crop is not ready for harvest"));
+
+            return new GrowCropNode(cropReadyForHarvest, qualifiedItemId, desiredAmount);
 
 
             //Does the player have at least the desired amount of the crop planted
             Decision cropPlanted = new Decision(HasCropPlanted);
-            cropPlanted.SetTrueNode(new Action("Player has crop planted"));
+            cropPlanted.SetTrueNode(cropReadyForHarvest);
             cropPlanted.SetFalseNode(new Action("Player does not have crop planted"));
 
             //Has the player harvested the desired amount of crops?
@@ -577,7 +597,7 @@ namespace Stardew_100_Percent_Mod
             //Does player have the required items to create the item in their inventory it's different depending on if
             //it's a cooking recipe because cooking recipies can accept multiple types of ingrediants
 
-            DecisionTreeNode hasItemsCooking = GetMissingRecipeIngrediants(name);
+            DecisionTreeNode hasItemsCooking = cooking ? GetMissingRecipeIngrediants(name) : null;
 
             DecisionTreeNode hasItemsCrafting = new Decision(
                 new Action($"{(cooking ? "Cook" : "Craft")} {name}"),
@@ -799,6 +819,11 @@ namespace Stardew_100_Percent_Mod
             return itemCount >= desiredAmount;
         }
 
+        /// <summary>
+        /// Checks if the player has grown the desired amount of crops
+        /// </summary>
+        /// <param name="qualifiedItemId"></param>
+        /// <returns>true if </returns>
         private bool PlayerHasGrownDesiredAmountOfCrop(string qualifiedItemId)
         { 
             cropsGrownDictinary.TryGetValue(qualifiedItemId, out int grownAmount);

@@ -13,7 +13,7 @@ namespace Stardew_100_Percent_Mod.Decision_Trees
         /// <summary>
         /// An action to see how much money the player needs
         /// </summary>
-        /// <param name="changeDisplayNameMethod"></param>
+        /// <param name="changeDisplayNameDelegate"></param>
         public GetMoneyAction(ChangeDisplayNameDelegate changeDisplayNameDelegate) : base(changeDisplayNameDelegate)
         {
             

@@ -10,6 +10,7 @@ using static Stardew_100_Percent_Mod.TaskManager;
 using System.ComponentModel;
 using HarmonyLib;
 using StardewValley.GameData.Crops;
+using StardewValley.TerrainFeatures;
 
 namespace Stardew_100_Percent_Mod
 {
