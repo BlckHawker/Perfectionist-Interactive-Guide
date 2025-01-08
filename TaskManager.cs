@@ -1,7 +1,13 @@
-﻿using Microsoft.Xna.Framework;
+﻿/*
+ Check that Grow Harvest works with regrowable crops like green beans and blueberries
+ https://gitlab.com/enom/time-before-harvest-enhanced/-/blob/main/ModEntry.cs?ref_type=heads
+ */
+
+using Microsoft.Xna.Framework;
 using Stardew_100_Percent_Mod.Decision_Trees;
 using StardewModdingAPI;
 using StardewValley;
+using StardewValley.BellsAndWhistles;
 using StardewValley.Buildings;
 using StardewValley.Locations;
 using StardewValley.Network;
@@ -253,20 +259,33 @@ namespace Stardew_100_Percent_Mod
 
         private static DecisionTreeNode GrowCrop(ItemName itemName, int desiredAmount)
         {
-            return GrowCrop(Instance.ItemIds[itemName], desiredAmount);
+            //Make it so the location is set automatically based on the seed
+            //Make a dictionary that will contain which seeds grow which crops
+
+            Farm farm = (Farm)GetLocation("Farm");
+            string seedId = "472"; //parnip seed
+
+            return GrowCrop(farm, Instance.ItemIds[itemName], seedId, desiredAmount);
         }
 
-        private static DecisionTreeNode GrowCrop(string qualifiedItemId, int desiredAmount)
+        /// <summary>
+        /// Task to grow a number of a specific crop
+        /// </summary>
+        /// <param name="location">The location the crop is growing</param>
+        /// <param name="qualifiedItemId">the qualified id of the desired crop</param>
+        /// <param name="seedId">the unqualified id of the seed that grows into the desired crop</param>
+        /// <param name="desiredAmount">the amount of the crop that wants to be grown</param>
+        /// <returns></returns>
+        private static DecisionTreeNode GrowCrop(GameLocation location, string qualifiedItemId, string seedId, int desiredAmount)
         {
             Item item = ItemLocator.GetItem(qualifiedItemId);
             DummyItem dummyItem = Instance.dummyItems.First(i => i.QualifiedItemId == qualifiedItemId);
 
             IEnumerable<Crop> GetDesiredCrops()
             {
-                Farm farm = (Farm)GetLocation("Farm");
                 //Under the assumption that all qualified ids start with (O) followed by the unqualified id
                 string desiredUnqualifiedId = qualifiedItemId.Replace("(O)", "");
-                IEnumerable<Crop> plantedCrops = farm.terrainFeatures.Pairs.Where(pair => pair.Value is HoeDirt hoeDirt && hoeDirt.crop != null).Select(pair => ((HoeDirt)pair.Value).crop).ToList();
+                IEnumerable<Crop> plantedCrops = location.terrainFeatures.Pairs.Where(pair => pair.Value is HoeDirt hoeDirt && hoeDirt.crop != null).Select(pair => ((HoeDirt)pair.Value).crop).ToList();
                 return plantedCrops.Where(crop => crop.indexOfHarvest.Value == desiredUnqualifiedId).ToList();
             }
 
@@ -307,28 +326,95 @@ namespace Stardew_100_Percent_Mod
 
             IEnumerable<Crop> GetDesiredFullyGrownCrops()
             {
-                return GetDesiredCrops().Where(crop => crop.currentPhase.Value >= crop.phaseDays.Count - 1
-                                        && (!crop.fullyGrown.Value || crop.dayOfCurrentPhase.Value <= 0));
+                return GetDesiredCrops()
+                .Where(crop =>
+                {
+                    bool cropReady1 = crop.currentPhase.Value >= crop.phaseDays.Count - 1
+                        && (!crop.fullyGrown.Value || crop.dayOfCurrentPhase.Value <= 0);
+
+                    int totalDays = crop.phaseDays.Take(crop.phaseDays.Count() - 1).Sum();
+                    int growProgress = crop.phaseDays.Take(crop.currentPhase.Value).Sum() + crop.dayOfCurrentPhase.Value;
+
+                    bool cropReady2 = growProgress >= totalDays;
+
+                    return cropReady1 || cropReady2;
+                });
             }
 
-            
+            //order by how fast the crop is going to grow
+            IEnumerable<Crop> GetDesiredNotFullyGrownCrops()
+            { 
+                return GetDesiredCrops().Except(GetDesiredFullyGrownCrops()).OrderBy(crop =>
+                {
+                    int totalDays = crop.phaseDays.Take(crop.phaseDays.Count() - 1).Sum();
+                    int growProgress = crop.phaseDays.Take(crop.currentPhase.Value).Sum() + crop.dayOfCurrentPhase.Value;
+                    return totalDays - growProgress;
+                });
+            }
+
             bool CropReadyForHarvest()
             {
                 return GetDesiredFullyGrownCrops().Any();
             }
 
-           
+
+            //If a crop that is currenlty growing can be harvested before the season is over
+            bool SavalbeCrop()
+            {
+                Crop crop = GetDesiredNotFullyGrownCrops().FirstOrDefault();
+
+                //if the crop is not planted, say it's not possible to grow the crop
+                if (crop == null)
+                {
+                    return false;
+                }
+
+                //is there enough days within this seaon for the crop to grow
+                int daysLeftInSeason = 28 - Game1.dayOfMonth;
+                int totalDays = crop.phaseDays.Take(crop.phaseDays.Count() - 1).Sum();
+                int growProgress = crop.phaseDays.Take(crop.currentPhase.Value).Sum() + crop.dayOfCurrentPhase.Value;
+                int daysLeftForCropToGrow = totalDays - growProgress;
+
+                if (daysLeftInSeason >= daysLeftForCropToGrow)
+                {
+                    return true;
+                }
+
+                //if not, can the crop grow next season
+                bool canGrownNextSeason = false;
+
+                Season nextSeason = (Season)((int)(location.GetSeason() + 1) % Enum.GetNames(typeof(Season)).Length);
+
+                //if the seed ignores seasons in a specific location, then it can grow next seasn
+                if (location.SeedsIgnoreSeasonsHere())
+                {
+                    canGrownNextSeason = true;
+                }
+
+                else if (Crop.TryGetData(seedId, out var data))
+                {
+                    canGrownNextSeason = data.Seasons?.Contains(nextSeason) ?? false;
+                }
+
+                return canGrownNextSeason;
+            }
 
 
             GrowCropAction action = new GrowCropAction(qualifiedItemId, GetAction);
 
+            //There is at least one crop that can be fully grown if the player continues to water it before it dies
+            Decision savalableCrop = new Decision(SavalbeCrop);
+            savalableCrop.SetTrueNode(new Action("Crop can be watered to be harvested"));
+            //Wait til it's the right season again
+            savalableCrop.SetFalseNode(new Action(""));
+
+            return new GrowCropNode(savalableCrop, qualifiedItemId, desiredAmount);
+
+
             //There is at least a desired crop ready for harvest
             Decision cropReadyForHarvest = new Decision(CropReadyForHarvest);
             cropReadyForHarvest.SetTrueNode(new Action(HarvestCropAction));
-            cropReadyForHarvest.SetFalseNode(new Action("Crop is not ready for harvest"));
-
-            return new GrowCropNode(cropReadyForHarvest, qualifiedItemId, desiredAmount);
-
+            cropReadyForHarvest.SetFalseNode(savalableCrop);
 
             //Does the player have at least the desired amount of the crop planted
             Decision cropPlanted = new Decision(HasCropPlanted);
@@ -464,8 +550,9 @@ namespace Stardew_100_Percent_Mod
         /// </summary>
         /// <param name="uniqueLocationName"></param>
         /// <returns></returns>
-        private static GameLocation GetLocation(string uniqueLocationName)
+        public static GameLocation GetLocation(string uniqueLocationName)
         {
+            //this method public for debugging purposes, but should private
             return Game1.locations.First(l => l.NameOrUniqueName == uniqueLocationName);
         }
 
