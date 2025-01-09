@@ -22,11 +22,11 @@ namespace Stardew_100_Percent_Mod
             }
         }
 
-        private string? displayName;
+        private string displayName;
 
         public delegate string ChangeDisplayNameDelegate();
 
-        protected ChangeDisplayNameDelegate changeDisplayNameMethod { get;  set; }
+        public ChangeDisplayNameDelegate changeDisplayNameMethod { get; protected set; }
 
 
         public Action(string displayName)

@@ -33,7 +33,6 @@ namespace Stardew_100_Percent_Mod
             helper.Events.GameLoop.SaveLoaded += SaveLoaded;
             helper.Events.Display.RenderedHud += OnRenderedHud;
             helper.Events.Display.Rendered += Rendered;
-            helper.Events.Input.ButtonPressed += OnButtonPressed;
 
             Menu.SetMonitor(Monitor);
 
@@ -61,8 +60,6 @@ namespace Stardew_100_Percent_Mod
         {
             if (!Context.IsWorldReady)
                 return;
-
-            Crop a;
 
             TaskManager instance = TaskManager.Instance;
 
@@ -99,23 +96,6 @@ namespace Stardew_100_Percent_Mod
             Menu.SetTasks(actions);
 
             instance.PostFix();
-        }
-
-        private void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
-        {
-            // ignore if player hasn't loaded a save yet
-            if (!Context.IsWorldReady)
-                return;
-            // print button presses to the console window
-
-            //todo refactor this so it works when the player harvests a crop
-            if (e.Button == SButton.Space)
-            {
-                TaskManager instance = TaskManager.Instance;
-                string id = "(O)24"; //Parsnip
-                instance.AddToGrowCropCount(id); 
-                Log($"The player has \"grown\" {instance.cropsGrownDictinary[id]} parsnips.");
-            }
         }
 
         private void OnRenderedHud(object? sender, RenderedHudEventArgs e) 

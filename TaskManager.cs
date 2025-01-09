@@ -1,4 +1,5 @@
 ﻿/*
+ * todo
  Check that Grow Harvest works with regrowable crops like green beans and blueberries
  https://gitlab.com/enom/time-before-harvest-enhanced/-/blob/main/ModEntry.cs?ref_type=heads
  */
@@ -8,18 +9,12 @@ using Netcode;
 using Stardew_100_Percent_Mod.Decision_Trees;
 using StardewModdingAPI;
 using StardewValley;
-using StardewValley.BellsAndWhistles;
 using StardewValley.Buildings;
 using StardewValley.GameData.Crops;
 using StardewValley.Locations;
-using StardewValley.Network;
 using StardewValley.Objects;
 using StardewValley.TerrainFeatures;
-using System.Collections;
-using System.Collections.Generic;
-using static Stardew_100_Percent_Mod.Action;
 using static Stardew_100_Percent_Mod.NPCManager;
-using static Stardew_100_Percent_Mod.TaskManager;
 
 namespace Stardew_100_Percent_Mod
 {
@@ -30,11 +25,7 @@ namespace Stardew_100_Percent_Mod
     {
         const int MONTH_DAY_COUNT = 28; //The number of days in a month
         public static TaskManager Instance;
-        //todo implement a selector and sequence classes
-        private List<Task> tree;
         public List<DecisionTreeNode> roots { get; private set; }
-
-        public List<Task> avaibleTasks;
 
         //keep try of items that don't exist in the world
         private List<DummyItem> dummyItems;
@@ -262,6 +253,7 @@ namespace Stardew_100_Percent_Mod
 
         private static DecisionTreeNode GrowCrop(ItemName itemName, int desiredAmount)
         {
+            //todo
             //Make it so the location is set automatically based on the seed
             //Make a dictionary that will contain which seeds grow which crops
 
@@ -276,25 +268,28 @@ namespace Stardew_100_Percent_Mod
         /// </summary>
         /// <param name="location">The location the crop is growing</param>
         /// <param name="qualifiedItemId">the qualified id of the desired crop</param>
-        /// <param name="seedId">the unqualified id of the seed that grows into the desired crop</param>
+        /// <param name="unqualifiedSeedId">the unqualified id of the seed that grows into the desired crop</param>
         /// <param name="desiredAmount">the amount of the crop that wants to be grown</param>
         /// <returns></returns>
-        private static DecisionTreeNode GrowCrop(GameLocation location, string qualifiedItemId, string seedId, int desiredAmount)
+        private static DecisionTreeNode GrowCrop(GameLocation location, string qualifiedItemId, string unqualifiedSeedId, int desiredAmount)
         {
             Item item = ItemLocator.GetItem(qualifiedItemId);
             DummyItem dummyItem = Instance.dummyItems.First(i => i.QualifiedItemId == qualifiedItemId);
+            string qualifiedSeedId = $"(O){unqualifiedSeedId}";
 
             IEnumerable<Crop> GetDesiredCrops()
             {
                 //Under the assumption that all qualified ids start with (O) followed by the unqualified id
                 string desiredUnqualifiedId = qualifiedItemId.Replace("(O)", "");
-                IEnumerable<Crop> plantedCrops = location.terrainFeatures.Pairs.Where(pair => pair.Value is HoeDirt hoeDirt && hoeDirt.crop != null).Select(pair => ((HoeDirt)pair.Value).crop).ToList();
-                return plantedCrops.Where(crop => crop.indexOfHarvest.Value == desiredUnqualifiedId).ToList();
+                List<Crop> plantedCrops = location.terrainFeatures.Pairs.Where(pair => pair.Value is HoeDirt hoeDirt && hoeDirt.crop != null).Select(pair => ((HoeDirt)pair.Value).crop).ToList();
+                List<Crop> desiredCrops = plantedCrops.Where(crop => crop.indexOfHarvest.Value == desiredUnqualifiedId).ToList();
+                return desiredCrops;
             }
 
             IEnumerable<Crop> GetDesiredFullyGrownCrops()
             {
-                return GetDesiredCrops()
+                List<Crop> desiredCrops = GetDesiredCrops().ToList();
+                List<Crop> fullyGrownCrops = desiredCrops
                 .Where(crop =>
                 {
                     bool cropReady1 = crop.currentPhase.Value >= crop.phaseDays.Count - 1
@@ -306,7 +301,9 @@ namespace Stardew_100_Percent_Mod
                     bool cropReady2 = growProgress >= totalDays;
 
                     return cropReady1 || cropReady2;
-                });
+                }).ToList();
+
+                return fullyGrownCrops;
             }
 
             //order by how fast the crop is going to grow
@@ -322,7 +319,31 @@ namespace Stardew_100_Percent_Mod
 
             IEnumerable<Crop> GetUnWateredDesiredCrops()
             {
-                return GetDesiredNotFullyGrownCrops().Where(crop => !crop.Dirt.isWatered() && crop.Dirt.needsWatering());
+                List<Crop> desiredNotGrownCrops = GetDesiredNotFullyGrownCrops().ToList();
+                List<Crop> unwanteredCrops = desiredNotGrownCrops.Where(crop => !crop.Dirt.isWatered() && crop.Dirt.needsWatering()).ToList();
+                return unwanteredCrops;
+            }
+
+            //the number of seeds the player needs to plant
+            //bool total - if the method should check all tasks requiring this seed, or just this specific one
+            int GetRequiredSeedsCount(bool total)
+            {
+                int requiredAmount;
+                if (total)
+                {
+                    Instance.requiredCropsGrownDictinary.TryGetValue(qualifiedItemId, out requiredAmount);
+                }
+
+                else
+                {
+                    requiredAmount = desiredAmount;
+                }
+                int cropsGrown;
+                int cropsInGroundCount = GetDesiredCrops().Count();
+                Instance.cropsGrownDictinary.TryGetValue(qualifiedItemId, out cropsGrown);
+                //the number of crops to plant should be the desired amount to grow - the # crops of crops already grown
+                //- the crops in the ground
+                return requiredAmount - cropsGrown - cropsInGroundCount;
             }
 
             string HarvestCropAction()
@@ -347,6 +368,32 @@ namespace Stardew_100_Percent_Mod
                 return $"Water {Instance.ItemIds.First(kv => kv.Value == qualifiedItemId).Key} at location ({position.X},{position.Y}) on the {location}";
             }
 
+            string PlantCrops()
+            {
+                int totalRequiredSeedCount = GetRequiredSeedsCount(true);
+                int taskRequiredSeedCount = GetRequiredSeedsCount(false);
+                int currentSeedCount = ItemLocator.PlayerItemCount(qualifiedSeedId);
+
+                
+                int seedsToPlantCount;
+
+                //refactor this to be a ternerary
+
+                //check if the player can plant the total required seed amount
+                if (currentSeedCount >= totalRequiredSeedCount)
+                {
+                    seedsToPlantCount = totalRequiredSeedCount;
+                }
+                //if not then tell them to plant the task amount
+                else
+                { 
+                    seedsToPlantCount = taskRequiredSeedCount;
+                }
+
+                string seedName = Instance.ItemIds.First(kv => kv.Value == qualifiedSeedId).Key.ToString();
+                return $"Plant {seedsToPlantCount} {seedName}";
+            }
+
             
 
             //Checks if the player has enough
@@ -359,14 +406,17 @@ namespace Stardew_100_Percent_Mod
             {
                 List<Crop> desiredCrops = GetDesiredCrops().ToList();
 
-                //the number of crops the player should have planted is required amount - amount harvested
+
+                //the number of crops the player should have planted is required amount - amount planted and harvested
                 //this may break when having multiple of the same task with the same crop
                 Instance.requiredCropsGrownDictinary.TryGetValue(qualifiedItemId, out int requiredAmout);
+                Instance.cropsGrownDictinary.TryGetValue(qualifiedItemId, out int cropGrownCount);
+
 
                 //Instance.logMethod($"Requires: {requiredAmout}");
                 //Instance.logMethod($"Has planted: {desiredCrops.Count}");
 
-                return (requiredAmout - desiredCrops.Count) <= 0;
+                return (requiredAmout - desiredCrops.Count - cropGrownCount) <= 0;
             }
 
             //Can this crop grown this season?
@@ -375,10 +425,10 @@ namespace Stardew_100_Percent_Mod
             bool CropCanGrow(Crop? crop = null)
             {
                 CropData data;
-                Crop.TryGetData(seedId, out data);
+                Crop.TryGetData(unqualifiedSeedId, out data);
 
                 #region Can Crop Grown This Season
-                if (!Crop.IsInSeason(location, seedId))
+                if (!Crop.IsInSeason(location, unqualifiedSeedId))
                 {
                     return false;
                 }
@@ -447,21 +497,34 @@ namespace Stardew_100_Percent_Mod
                 return GetUnWateredDesiredCrops().Any();
             }
 
-            GrowCropAction action = new GrowCropAction(qualifiedItemId, GrowCropAction);
+            bool PlayerHasEnoughSeeds()
+            {
+                int requiredSeedCount = GetRequiredSeedsCount(false);
+                Instance.InventoryItemReserveDictonary.TryGetValue(qualifiedSeedId, out int currentSeedCount);
+
+                if (requiredSeedCount <= currentSeedCount)
+                { 
+                    Instance.UpdateReservedItemDicionary(qualifiedItemId, -requiredSeedCount);
+                    return true;
+                }
+
+                return false;
+            }
+
+            //Player has enough seeds to complete the task
+            Decision hasEnoughSeeds = new Decision(PlayerHasEnoughSeeds);
+            hasEnoughSeeds.SetTrueNode(new Action(PlantCrops));
+            hasEnoughSeeds.SetFalseNode(GetProducableItemTree(qualifiedSeedId, desiredAmount));
 
             //Can crop grow this seaason without crop in ground
             Decision cropGrowsThisSeason = new Decision(() => CropCanGrow());
-            cropGrowsThisSeason.SetTrueNode(new Action("Crop can grow"));
-            cropGrowsThisSeason.SetFalseNode(new Action("Crop can't grow"));
-
-            return new GrowCropNode(cropGrowsThisSeason, qualifiedItemId, desiredAmount);
+            cropGrowsThisSeason.SetTrueNode(hasEnoughSeeds);
+            cropGrowsThisSeason.SetFalseNode(new Action(""));
 
             //There is a crop in the ground that is not watered
             Decision unwateredCrop = new Decision(UnwateredCrop);
             unwateredCrop.SetTrueNode(new Action(WaterCropAction));
-            unwateredCrop.SetFalseNode(cropGrowsThisSeason);
-
-
+            unwateredCrop.SetFalseNode(new Action(""));
 
             //There is at least one crop that can be fully grown if the player continues to water it before it dies
             Decision savalableCrop = new Decision(SalvageableCrop);
@@ -477,7 +540,7 @@ namespace Stardew_100_Percent_Mod
             //Does the player have at least the desired amount of the crop planted
             Decision cropPlanted = new Decision(HasCropPlanted);
             cropPlanted.SetTrueNode(cropReadyForHarvest);
-            cropPlanted.SetFalseNode(new Action("Player does not have crop planted"));
+            cropPlanted.SetFalseNode(cropGrowsThisSeason);
 
             //Has the player harvested the desired amount of crops?
             Decision grownEnoughCrops = new Decision(GrownEnoughCrops, true);
@@ -1059,7 +1122,6 @@ namespace Stardew_100_Percent_Mod
             //combine special actions
             actions = CombineItemActions(actions);
             actions = CombineMoneyActions(actions);
-            actions = CombineGrowCropsActions(actions);
 
             //combine the regular actions
 
@@ -1283,6 +1345,7 @@ namespace Stardew_100_Percent_Mod
         {
             List<Action> newList = new List<Action>();
             bool foundItemAction = false;
+
             for (int i = 0; i < actions.Count; i++)
             {
                 Action action = actions[i];
@@ -1303,65 +1366,5 @@ namespace Stardew_100_Percent_Mod
 
             return newList;
         }
-
-        private List<Action> CombineGrowCropsActions(List<Action> actions)
-        {
-
-            List<string> cropIds = new List<string>();
-            //the index the first GrowCropAction of the same qualifiedItemId is found
-
-            //get all the ids of the GrowCropAction actions (and their index)
-            for (int i = 0; i < actions.Count; i++)
-            {
-                Action action = actions[i];
-                if (action is GrowCropAction)
-                {
-                    string qualifiedItemId = ((GrowCropAction)action).QualifiedItemId;
-
-                    if (!cropIds.Contains(qualifiedItemId))
-                    {
-                        cropIds.Add(qualifiedItemId);
-                    }
-                }
-            }
-
-            //combine all of the GrowCropActions
-            foreach (string id in cropIds)
-            {
-                actions = CombineGrowCropsActions(id, actions);
-            }
-
-            return actions;
-        }
-
-        private List<Action> CombineGrowCropsActions(string qualifiedItemId, List<Action> actions)
-        {
-            List<Action> newList = new List<Action>();
-            bool foundItemAction = false;
-            for (int i = 0; i < actions.Count; i++)
-            {
-                Action action = actions[i];
-                if (action is GrowCropAction gropCropAction)
-                {
-                    if (gropCropAction.QualifiedItemId == qualifiedItemId)
-                    {
-                        if (!foundItemAction)
-                        {
-                            foundItemAction = true;
-                            newList.Add(gropCropAction);
-                        }
-                    }
-                }
-
-                else
-                {
-                    newList.Add(action);
-                }
-            }
-
-            return newList;
-        }
-
-
     }
 }
