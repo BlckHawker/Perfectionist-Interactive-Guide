@@ -13,6 +13,7 @@ using StardewValley.GameData.Crops;
 using StardewValley.TerrainFeatures;
 using StardewValley.BellsAndWhistles;
 using xTile.Dimensions;
+using StardewValley.GameData.Buildings;
 
 namespace Stardew_100_Percent_Mod
 {
@@ -69,32 +70,12 @@ namespace Stardew_100_Percent_Mod
                 framerate = $"Framerate: {frames} FPS.";
                 frames = 0;
             }
-
-
             instance.PreFix();
-
             //Go through the decsion tree and check what the desired action is
             List<Action> actions = instance.roots.Select(root => (Action)root.MakeDecision() ).ToList();
             actions.Insert(0, new Action(framerate));
             actions = instance.CombineActions(actions);
-
-
-            Farm farm = (Farm)TaskManager.GetLocation("Farm");
-            //check if the player has a shed on the farm
-            IEnumerable<Building> buildings = farm.buildings;
-
-
-
-            IEnumerable<Building> sheds = farm.buildings.Where(b => b.buildingType.Value == "Shed");
-            IEnumerable<Building> bigSheds = farm.buildings.Where(b => b.buildingType.Value == "Big Shed");
-
-            actions.Add(new Action($"Shed under construction: {sheds.Any(s => s.daysOfConstructionLeft.Value > 0)}"));
-            actions.Add(new Action($"Built shed count: {sheds.Count(s => s.daysOfConstructionLeft.Value < 1)}"));
-            actions.Add(new Action($"Big Shed construction in progress: {bigSheds.Any(s => s.daysOfConstructionLeft.Value > 0)}"));
-            actions.Add(new Action($"Big Shed count: {bigSheds.Count(s => s.daysOfConstructionLeft.Value < 1)}"));
-
             Menu.SetTasks(actions);
-
             instance.PostFix();
         }
 

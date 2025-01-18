@@ -12,8 +12,11 @@ using StardewValley;
 using StardewValley.Buildings;
 using StardewValley.GameData.Crops;
 using StardewValley.Locations;
+using StardewValley.Minigames;
 using StardewValley.Objects;
 using StardewValley.TerrainFeatures;
+using System;
+using System.Runtime.CompilerServices;
 using static Stardew_100_Percent_Mod.NPCManager;
 
 namespace Stardew_100_Percent_Mod
@@ -92,6 +95,7 @@ namespace Stardew_100_Percent_Mod
             OstritchEgg,
             Parsnip,
             ParsnipSeeds,
+            Stone,
             VoidEgg,
             Wood
         }
@@ -140,6 +144,7 @@ namespace Stardew_100_Percent_Mod
                 { ItemName.OstritchEgg, "(O)289"},
                 { ItemName.Parsnip, "(O)24" },
                 { ItemName.ParsnipSeeds, "(O)472"},
+                { ItemName.Stone, "(O)390" },
                 { ItemName.Wood, "(O)388"},
                 { ItemName.VoidEgg, "(O)305" }
             };
@@ -158,6 +163,27 @@ namespace Stardew_100_Percent_Mod
             Instance.dummyCookingRecipes = DummyCookingRecipe.GetAllRecipes();
             Instance.dummyItems = Instance.ItemIds.Select(kv => new DummyItem(kv.Value, kv.Key.ToString())).ToList();
 
+            #region Construction Objects
+            Construction shed = new Construction(
+                "Shed",
+                Game1.buildingData.First(d => d.Key == "Shed").Value, 
+                false,
+                completeFunction: () => GetLocation("Farm").buildings.Any(b => b.buildingType.Value == "Shed" && b.daysOfConstructionLeft.Value < 1),
+                underConstructionFunction: () => GetLocation("Farm").buildings.Any(b => b.buildingType.Value == "Shed" && b.daysOfConstructionLeft.Value > 0));
+
+            Construction bigShed = new Construction(
+                "Big Shed",
+                Game1.buildingData.First(d => d.Key == "Big Shed").Value,
+                false,
+                completeFunction: () => GetLocation("Farm").buildings.Any(b => b.buildingType.Value == "Big Shed" && b.daysOfConstructionLeft.Value < 1),
+                underConstructionFunction: () => GetLocation("Farm").buildings.Any(b => b.buildingType.Value == "Shed" && b.daysUntilUpgrade.Value > 0),
+                shed);
+            #endregion
+
+
+            DecisionTreeNode buildShed = ConstructionTask(shed, false);
+            DecisionTreeNode buildBigShed = ConstructionTask(bigShed, false);
+
             DecisionTreeNode parsnipSeedsTree = GetProducableItemTree(ItemName.ParsnipSeeds, 15);
 
             DecisionTreeNode becomeFriendsWithJas = BecomeFriendsWithNPC("Jas");
@@ -168,17 +194,11 @@ namespace Stardew_100_Percent_Mod
 
             DecisionTreeNode getLevel3House = GetHouseUpgrade(3);
 
-            Instance.roots = new List<DecisionTreeNode>() { Test(), Test() };
+            DecisionTreeNode growFiveParsnips = GrowCrop(ItemName.Parsnip, 5);
+
+            Instance.roots = new List<DecisionTreeNode>() { buildBigShed };
         }
 
-        /// <summary>
-        /// Tests growing crops works
-        /// </summary>
-        /// <returns></returns>
-        private static DecisionTreeNode Test()
-        {
-            return GrowCrop(ItemName.Parsnip, 5);
-        }
 
         /// <summary>
         /// Get a tree branch of how to get the missing ingrediants for a recipe
@@ -838,6 +858,64 @@ namespace Stardew_100_Percent_Mod
         }
 
         /// <summary>
+        /// Create a task for the player to either build or upgrade a building from Robin
+        /// </summary>
+        /// <param name="permament">if the task is permanent</param>
+        /// <param name="constructionObject">The building/upgrade to be complete</param>
+        /// <param name="getBigMoneyTask">If the player should get money using the big "get money" task. Otherwise will get money from small "get money task"</param>
+        /// <returns></returns>
+        private static DecisionTreeNode ConstructionTask(Construction construction, bool getBigMoneyTask)
+        {
+            //Robin is aviable to upgrade / build something
+            Decision robinAvaiable = new Decision(Instance.RobinAviableToBuild());
+            robinAvaiable.SetTrueNode(new Action($"Build {construction.Name}"));
+            robinAvaiable.SetFalseNode(new Action(""));
+
+            DecisionTreeNode GetItemTree(int index)
+            {
+                if (index == construction.MaterialsNeeded.Count)
+                    return robinAvaiable;
+                KeyValuePair<string, int> kv = construction.MaterialsNeeded.ElementAt(index);
+                return GetProducableItemTree(kv.Key, kv.Value, GetItemTree(index + 1));
+            }
+
+            //Player has the necessary materials for the construction (make a dynamic tree based on the materials required
+            DecisionTreeNode getMaterialTree = GetItemTree(0);
+
+            //Player has enough money for construction
+            Decision playerHasEnoughMoney = new Decision(() => Instance.HasDesiredMoney(construction.BuildCost));
+            playerHasEnoughMoney.SetTrueNode(getMaterialTree);
+            playerHasEnoughMoney.SetFalseNode(getBigMoneyTask ? GetBigMoney() : GetSmallMoney());
+
+            //Player has prerequisite building / upgrade
+            Decision playerHasPrereq = new Decision(() => construction.PrequisiteConstruction == null || construction.PrequisiteConstruction.Complete);
+            playerHasPrereq.SetTrueNode(playerHasEnoughMoney);
+            playerHasPrereq.SetFalseNode(construction.PrequisiteConstruction == null ? new Action("") : ConstructionTask(construction.PrequisiteConstruction, getBigMoneyTask));
+
+            //player has requested desired building
+            Decision requestedBuilding = new Decision(construction.UnderConstructionFunction);
+            requestedBuilding.SetTrueNode(new Action(""));
+            requestedBuilding.SetFalseNode(playerHasPrereq);
+
+            //Player has the building constructed / upgraded the building on the farm
+            Decision hasConstructedBuilding = new Decision(() => construction.Complete, construction.Permanent);
+            hasConstructedBuilding.SetTrueNode(new Action(""));
+            hasConstructedBuilding.SetFalseNode(requestedBuilding);
+
+            return hasConstructedBuilding;
+        }
+
+        private static DecisionTreeNode GetSmallMoney()
+        {
+            return new Action(() => $"Get {Instance.requiredMoney} gold (small)");
+        }
+
+        private static DecisionTreeNode GetBigMoney()
+        {
+            return new Action(() => $"Get {Instance.requiredMoney} gold (big)");
+        }
+
+        /// <summary>
         /// Get a branch to get the farmhouse to a certain upgrade level
         /// </summary>
         /// <param name="desiredLevel">the desired upgrade level of the house</param>
@@ -845,6 +923,7 @@ namespace Stardew_100_Percent_Mod
         /// <returns></returns>
         private static DecisionTreeNode GetHouseUpgrade(int desiredLevel, DecisionTreeNode? actionAfterward = null)
         {
+            //todo: refactor this to use ConstructionTask
             Action upgradeHouseAction = new Action("Upgrade house from Robin");
             //the amount of money that is needed for each upgradeLevel
             int[] moneyArr = new int[] { 10000, 65000, 100000 };
