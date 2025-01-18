@@ -37,9 +37,13 @@ namespace Stardew_100_Percent_Mod
             this(name, permament, completeFunction, underConstructionFunction, buildingData.BuildCost, 
                 buildingData.BuildMaterials.ToDictionary(material => material.ItemId, material => material.Amount), 
                 prequisiteConstruction)
-        {
-            
-        }
+        { }
+
+        public Construction(string name, bool permament, Decision.DecisionDelegate completeFunction, Decision.DecisionDelegate underConstructionFunction, int buildCost, Dictionary<TaskManager.ItemName, int> materialNeeded, Construction? prequisiteConstruction = null)
+            : this(name, permament, completeFunction, underConstructionFunction, buildCost,
+               materialNeeded.ToDictionary(kv => TaskManager.Instance.ItemIds[kv.Key], kv => kv.Value),
+               prequisiteConstruction) 
+        { }
 
         /// <summary>
         /// An object that tells the player what they are trying to build / upgrade
