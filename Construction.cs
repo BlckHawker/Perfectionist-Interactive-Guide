@@ -41,7 +41,7 @@ namespace Stardew_100_Percent_Mod
 
         public Construction(string name, bool permament, Decision.DecisionDelegate completeFunction, Decision.DecisionDelegate underConstructionFunction, int buildCost, Dictionary<TaskManager.ItemName, int> materialNeeded, Construction? prequisiteConstruction = null)
             : this(name, permament, completeFunction, underConstructionFunction, buildCost,
-               materialNeeded.ToDictionary(kv => TaskManager.Instance.ItemIds[kv.Key], kv => kv.Value),
+               materialNeeded.ToDictionary(kv => TaskManager.ItemIds[kv.Key], kv => kv.Value),
                prequisiteConstruction) 
         { }
 

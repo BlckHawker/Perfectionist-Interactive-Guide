@@ -26,10 +26,9 @@ namespace Stardew_100_Percent_Mod
         /// <returns></returns>
         public static List<DummyCookingRecipe> GetAllRecipes()
         {
-            TaskManager tm = Instance;
 
-            Dictionary<string, int> eggsDictionary = tm.EggList.ToDictionary(e => tm.ItemIds[e], e => 1);
-            Dictionary<string, int> milkDictionary = tm.MilkList.ToDictionary(e => tm.ItemIds[e], e => 1);
+            Dictionary<string, int> eggsDictionary = TaskManager.EggList.ToDictionary(e => TaskManager.ItemIds[e], e => 1);
+            Dictionary<string, int> milkDictionary = TaskManager.MilkList.ToDictionary(e => TaskManager.ItemIds[e], e => 1);
 
 
             List<Dictionary<string, int>> omeletList = new List<Dictionary<string, int>>

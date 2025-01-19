@@ -62,21 +62,19 @@ namespace Stardew_100_Percent_Mod
             if (!Context.IsWorldReady)
                 return;
 
-            TaskManager instance = TaskManager.Instance;
-
 
             if (e.IsOneSecond)
             {
                 framerate = $"Framerate: {frames} FPS.";
                 frames = 0;
             }
-            instance.PreFix();
+            TaskManager.PreFix();
             //Go through the decsion tree and check what the desired action is
-            List<Action> actions = instance.roots.Select(root => (Action)root.MakeDecision() ).ToList();
+            List<Action> actions = TaskManager.roots.Select(root => (Action)root.MakeDecision() ).ToList();
+            actions = TaskManager.CombineActions(actions);
             actions.Insert(0, new Action(framerate));
-            actions = instance.CombineActions(actions);
             Menu.SetTasks(actions);
-            instance.PostFix();
+            TaskManager.PostFix();
         }
 
         private void OnRenderedHud(object? sender, RenderedHudEventArgs e) 

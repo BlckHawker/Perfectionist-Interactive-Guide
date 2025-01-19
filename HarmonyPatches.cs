@@ -31,7 +31,7 @@ namespace Stardew_100_Percent_Mod
                 if (__result)
                 { 
                     Log($"A crop with an unqualified id of {__instance.indexOfHarvest.Value} has been harvested");
-                    TaskManager.Instance.AddToGrowCropCount($"(O){__instance.indexOfHarvest.Value}");
+                    TaskManager.AddToGrowCropCount($"(O){__instance.indexOfHarvest.Value}");
                 }
             }
             catch (Exception ex)

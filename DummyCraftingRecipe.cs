@@ -17,7 +17,6 @@ namespace Stardew_100_Percent_Mod
         /// <returns></returns>
         public static List<DummyCraftingRecipe> GetAllRecipes()
         {
-            TaskManager tm = Instance;
 
             return new List<DummyCraftingRecipe>()
             {
@@ -27,9 +26,9 @@ namespace Stardew_100_Percent_Mod
                     new List<Dictionary<string, int>>()
                     {
                         //120 wood
-                        new Dictionary<string, int>() { { tm.ItemIds[ItemName.Wood], 120 } },
+                        new Dictionary<string, int>() { { TaskManager.ItemIds[ItemName.Wood], 120 } },
                         //2 copper bars
-                        new Dictionary<string, int>() { { tm.ItemIds[ItemName.CopperBar], 2 }}
+                        new Dictionary<string, int>() { { TaskManager.ItemIds[ItemName.CopperBar], 2 }}
                     }) 
                 },
 
@@ -39,7 +38,7 @@ namespace Stardew_100_Percent_Mod
                     new List<Dictionary<string, int>>()
                     {
                         //50 wood
-                        new Dictionary<string, int>() { { tm.ItemIds[ItemName.Wood], 50 } },
+                        new Dictionary<string, int>() { { TaskManager.ItemIds[ItemName.Wood], 50 } },
                     }) 
                 }
             };

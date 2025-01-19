@@ -39,7 +39,7 @@ namespace Stardew_100_Percent_Mod.Decision_Trees
         public override DecisionTreeNode MakeDecision()
         {
             //it's garunteed that the list is not empty. Otherwise this Action would have not been created
-            string id = TaskManager.Instance.GetRecipeMissingItems(recipe)[0];
+            string id = TaskManager.GetRecipeMissingItems(recipe)[0];
 
             //get the first dicttionary that has the item id
             var dictoionary = recipe.RecipeLists.First(d => d.ContainsKey(id));

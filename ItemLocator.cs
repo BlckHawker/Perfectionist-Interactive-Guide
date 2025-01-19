@@ -57,7 +57,7 @@ namespace Stardew_100_Percent_Mod
         /// <returns>The item object with the desired QualifiedItemId</returns>
         public static Item GetItem(ItemName itemName)
         { 
-            return GetItem(TaskManager.Instance.ItemIds[itemName]);
+            return GetItem(TaskManager.ItemIds[itemName]);
         }
 
         /// <summary>
