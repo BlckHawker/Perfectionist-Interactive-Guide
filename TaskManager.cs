@@ -1,7 +1,7 @@
 ﻿/*
  * todo
- Check that Grow Harvest works with regrowable crops like green beans and blueberries
- https://gitlab.com/enom/time-before-harvest-enhanced/-/blob/main/ModEntry.cs?ref_type=heads
+ -Check that Grow Harvest works with regrowable crops like green beans and blueberries
+ - https://gitlab.com/enom/time-before-harvest-enhanced/-/blob/main/ModEntry.cs?ref_type=heads
  */
 
 using Microsoft.Xna.Framework;
@@ -14,6 +14,7 @@ using StardewValley.GameData.Crops;
 using StardewValley.Locations;
 using StardewValley.Objects;
 using StardewValley.TerrainFeatures;
+using xTile.Dimensions;
 using static Stardew_100_Percent_Mod.NPCManager;
 
 namespace Stardew_100_Percent_Mod
@@ -68,6 +69,12 @@ namespace Stardew_100_Percent_Mod
         private static int requiredMoney;
         //A dictionary to easily hold the id of each item
         public static Dictionary<ItemName, string> ItemIds { get; private set; }
+        
+        //A dictionary that tells what the seed of which crop is. Key is crop. Value is seed
+        private static Dictionary<ItemName, ItemName> CropToSeed { get; set; }
+
+        //the crop to grow in the spring for money
+        private static ItemName smallMoneySpringCrop = ItemName.Parsnip;
 
         //List of all of the custom crafting recipes (see class defintion to see reason why it exists)
         private static List<DummyCraftingRecipe> dummyCraftingRecipes;
@@ -140,6 +147,12 @@ namespace Stardew_100_Percent_Mod
                 { ItemName.Stone, "(O)390" },
                 { ItemName.Wood, "(O)388"},
                 { ItemName.VoidEgg, "(O)305" }
+            };
+
+            //todo dymanically delcare this if possible
+            CropToSeed = new Dictionary<ItemName, ItemName>()
+            {
+                { ItemName.Parsnip, ItemName.ParsnipSeeds }
             };
 
             //check if any ItemName keys are missing in ItemIds
@@ -217,7 +230,9 @@ namespace Stardew_100_Percent_Mod
 
             DecisionTreeNode growFiveParsnips = GrowCrop(ItemName.Parsnip, 5);
 
-            roots = new List<DecisionTreeNode>() { becomeFriendsWithJas, craftChest, cookOmelet, growFiveParsnips, buildBigShed };
+            DecisionTreeNode getSmallMoney = GetSmallMoney(50000);
+
+            roots = new List<DecisionTreeNode>() { getSmallMoney };
         }
 
 
@@ -294,14 +309,20 @@ namespace Stardew_100_Percent_Mod
 
         private static DecisionTreeNode GrowCrop(ItemName itemName, int desiredAmount)
         {
+            string seedId = ItemIds[CropToSeed[itemName]];
+            string unqualifiedSeedId = seedId.Replace("(O)", "");
+            return GrowCrop(itemName, unqualifiedSeedId, desiredAmount);
+        }
+
+        private static DecisionTreeNode GrowCrop(ItemName itemName, string unqualifiedSeedId, int desiredAmount)
+        {
             //todo
             //Make it so the location is set automatically based on the seed
             //Make a dictionary that will contain which seeds grow which crops
 
             Farm farm = (Farm)GetLocation("Farm");
-            string seedId = "472"; //parnip seed
 
-            return GrowCrop(farm, ItemIds[itemName], seedId, desiredAmount);
+            return GrowCrop(farm, ItemIds[itemName], unqualifiedSeedId, desiredAmount);
         }
 
         /// <summary>
@@ -876,7 +897,7 @@ namespace Stardew_100_Percent_Mod
             //Player has enough money for construction
             Decision playerHasEnoughMoney = new Decision(() => HasDesiredMoney(construction.BuildCost));
             playerHasEnoughMoney.SetTrueNode(getMaterialTree);
-            playerHasEnoughMoney.SetFalseNode(getBigMoneyTask ? GetBigMoney() : GetSmallMoney());
+            playerHasEnoughMoney.SetFalseNode(getBigMoneyTask ? GetBigMoney() : GetSmallMoney(construction.BuildCost));
 
             //Player has prerequisite building / upgrade
             Decision playerHasPrereq = new Decision(() => construction.PrequisiteConstruction == null || construction.PrequisiteConstruction.Complete);
@@ -896,9 +917,39 @@ namespace Stardew_100_Percent_Mod
             return hasConstructedBuilding;
         }
 
-        private static DecisionTreeNode GetSmallMoney()
+        /// <summary>
+        /// Tree to that will tell the player how to get money
+        /// </summary>
+        /// <returns></returns>
+        private static DecisionTreeNode GetSmallMoney(int desiredMoney)
         {
-            return new Action(() => $"Get {requiredMoney} gold (small)");
+            Action GrowSpecificCrop(ItemName cropName)
+            {
+                //see how much of this crop gives at base value
+
+                //find the seed of this crop
+
+                //see if the seed of the crop cancan be bought from a store (excluding the traveling market)
+
+                //if the seed was found in the store,reduce the profit by however how much the most expensive store for that seed is
+
+                //say to grow however much of the crop is to make a profit to get the desired amount of money
+                return null;
+            }
+            GameLocation farm = GetLocation("Farm");
+            //If the player has the desired amount of money
+            Decision hasDesiredMoney = new Decision(() => HasDesiredMoney(desiredMoney));
+            hasDesiredMoney.SetTrueNode(new Action(""));
+            hasDesiredMoney.SetFalseNode(new Action($"The player does not have the desired amount of money ({desiredMoney})"));
+
+            //the current season is spring
+            Decision isSpring = new Decision(() => farm.GetSeason() == Season.Spring);
+            isSpring.SetTrueNode(new Action("The current season is spring"));
+            isSpring.SetFalseNode(new Action("The current season is not spring"));
+
+            return isSpring;
+
+            return hasDesiredMoney;
         }
 
         private static DecisionTreeNode GetBigMoney()
@@ -1035,7 +1086,6 @@ namespace Stardew_100_Percent_Mod
 
 
         #endregion
-
 
         private static bool PlayerKnowsRecipe(string name)
         {
