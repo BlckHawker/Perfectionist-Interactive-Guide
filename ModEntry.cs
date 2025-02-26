@@ -2,21 +2,16 @@
 using StardewModdingAPI;
 using StardewValley;
 using System.Diagnostics;
-using Stardew_100_Percent_Mod.Decision_Trees;
 using StardewValley.Locations;
-using System.Linq;
-using StardewValley.Buildings;
 using static Stardew_100_Percent_Mod.TaskManager;
-using System.ComponentModel;
 using HarmonyLib;
 using StardewValley.GameData.Crops;
-using StardewValley.TerrainFeatures;
-using StardewValley.BellsAndWhistles;
-using xTile.Dimensions;
-using StardewValley.GameData.Buildings;
 using StardewValley.GameData.Objects;
 using StardewValley.GameData.Shops;
 using StardewValley.Internal;
+using Microsoft.Xna.Framework.Input;
+using StardewValley.Menus;
+using Microsoft.Xna.Framework;
 
 namespace Stardew_100_Percent_Mod
 {
@@ -29,7 +24,10 @@ namespace Stardew_100_Percent_Mod
         private IModHelper helper;
 
         //holds storage of what all the stores are currently selling items 
-        private static Dictionary<string, List<ItemStockInformation>> shopItemsCache = null;
+        private Dictionary<string, ShopData>? shopData = null;
+        public Dictionary<string, ShopData> ShopData => shopData ??= DataLoader.Shops(Game1.content);
+        private Dictionary<string, List<ItemStockInformation>>? shopItemsCache = null;
+        public Dictionary<string, List<ItemStockInformation>> ShopItemsCache => shopItemsCache ??= ShopData.Keys.ToDictionary(k => k, k => ShopBuilder.GetShopStock(k).Values.ToList());
         /*********
         ** Public methods
         *********/
@@ -42,11 +40,12 @@ namespace Stardew_100_Percent_Mod
             helper.Events.GameLoop.SaveLoaded += SaveLoaded;
             helper.Events.Display.RenderedHud += OnRenderedHud;
             helper.Events.Display.Rendered += Rendered;
-            helper.Events.GameLoop.DayStarted += OnDayStarted;
 
             Menu.SetMonitor(Monitor);
 
             HarmonyPatches.Initialize(Monitor);
+
+            Type[] arr = new Type[] { typeof(string), typeof(GameLocation), typeof(Rectangle), typeof(int), typeof(bool), typeof(bool), typeof(Action<string>) };
 
             var harmony = new Harmony(this.ModManifest.UniqueID);
 
@@ -54,17 +53,28 @@ namespace Stardew_100_Percent_Mod
                original: AccessTools.Method(typeof(Crop), nameof(Crop.harvest)),
                postfix: new HarmonyMethod(typeof(HarmonyPatches), nameof(HarmonyPatches.Harvest_Postfix))
             );
+
+
+            harmony.Patch(
+               original: AccessTools.Method(typeof(Utility), nameof(Utility.TryOpenShopMenu), arr),
+               postfix: new HarmonyMethod(typeof(HarmonyPatches), nameof(HarmonyPatches.TryOpenShopMenu_Postfix))
+            );
+
+
         }
+        
+
+
+
+        /*********
+        ** Private methods
+        *********/
 
         private void SaveLoaded(object? sender, SaveLoadedEventArgs e)
         {
             //initialize task manager
             TaskManager.InitalizeInstance(Log);
         }
-
-        /*********
-        ** Private methods
-        *********/
 
         private void OnUpdateTicked(object? sender, UpdateTickingEventArgs e)
         {
@@ -121,19 +131,26 @@ namespace Stardew_100_Percent_Mod
 
             List<string> shopApplicableShopNames = new List<string>();
 
-            foreach (KeyValuePair<string, List<ItemStockInformation>> kv in shopItemsCache)
+            ItemName desiredItem = ItemName.ParsnipSeeds;
+
+            foreach (KeyValuePair<string, List<ItemStockInformation>> kv in ShopItemsCache)
             {
-                if (kv.Value.Any(item => item.SyncedKey == TaskManager.ItemIds[ItemName.ParsnipSeeds]))
+                if (kv.Value.Any(item => item.SyncedKey == TaskManager.ItemIds[desiredItem]))
                 {
                     shopApplicableShopNames.Add(kv.Key);
                 }
 
-                //only show shops who are open at least for 10 minutes on the current day
+
+
+                //todo only show shops who are open at that current time
+
+                
             }
+            ShopSchedule.ShopOpen(ShopData, "SeedShop", actions);
 
             if (shopApplicableShopNames.Count > 0)
             {
-                actions.Add(new Action(string.Join(", ", shopApplicableShopNames.ToArray())));
+                actions.Add(new Action($"The currently shops are selling {desiredItem}: {string.Join(", ", shopApplicableShopNames.ToArray())}"));
             }
 
             else
@@ -141,7 +158,10 @@ namespace Stardew_100_Percent_Mod
                 actions.Add(new Action("No shop currently selling the desired item"));
             }
 
-            Game1.locations.
+            string s = $"All shop ids: {string.Join(", ", ShopData.Keys.ToArray())}";
+
+            actions.Add(new Action(s));
+
 
             Menu.SetTasks(actions);
 
@@ -155,29 +175,20 @@ namespace Stardew_100_Percent_Mod
             Menu.DrawMenuBackground(e.SpriteBatch);
         }
 
-        private void OnDayStarted(object? sender, DayStartedEventArgs e)
+        private void Rendered(object? sender, RenderedEventArgs e)
         {
-            //only update the shop's stock cache if it's the first (or it's currently null)
-            if (shopItemsCache == null || Game1.dayOfMonth == 1)
-            {
-                GetShopItems();
-            }
-            
+            this.frames += 1;
         }
 
         /// <summary>
-        /// Get all the items currently in all shops
+        /// when the the shop data is no longer accurate, wipe the cache
         /// </summary>
-        private void GetShopItems()
+        private void OnAssetsInvalidated(object? sender, AssetsInvalidatedEventArgs e)
         {
-            shopItemsCache = new Dictionary<string, List<ItemStockInformation>>();
-
-            Dictionary<string, ShopData> shops = DataLoader.Shops(Game1.content);
-            foreach (KeyValuePair<string, ShopData> kv in shops)
+            if (e.NamesWithoutLocale.Any(static assetName => assetName.IsEquivalentTo("Data/Shops")))
             {
-                shopItemsCache.Add(kv.Key, ShopBuilder.GetShopStock(kv.Key).Values.ToList());
+                shopItemsCache = null;
             }
-
         }
 
         /// <summary>
@@ -188,10 +199,7 @@ namespace Stardew_100_Percent_Mod
             this.Monitor.Log(message, logLevel);
         }
 
-        private void Rendered(object? sender, RenderedEventArgs e)
-        {
-            this.frames += 1;
-        }
+        
 
     }
 }
