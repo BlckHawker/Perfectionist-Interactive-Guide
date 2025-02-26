@@ -54,6 +54,11 @@ namespace Stardew_100_Percent_Mod
                postfix: new HarmonyMethod(typeof(HarmonyPatches), nameof(HarmonyPatches.Harvest_Postfix))
             );
 
+            harmony.Patch(
+               original: AccessTools.Method(typeof(GameLocation), nameof(GameLocation.lockedDoorWarp)),
+               postfix: new HarmonyMethod(typeof(HarmonyPatches), nameof(HarmonyPatches.lockedDoorWarp_Postfix))
+            );
+
 
             harmony.Patch(
                original: AccessTools.Method(typeof(Utility), nameof(Utility.TryOpenShopMenu), arr),
@@ -144,23 +149,16 @@ namespace Stardew_100_Percent_Mod
 
                 //todo only show shops who are open at that current time
 
-                
-            }
-            ShopSchedule.ShopOpen(ShopData, "SeedShop", actions);
 
-            if (shopApplicableShopNames.Count > 0)
-            {
-                actions.Add(new Action($"The currently shops are selling {desiredItem}: {string.Join(", ", shopApplicableShopNames.ToArray())}"));
+
+
+
             }
 
-            else
-            { 
-                actions.Add(new Action("No shop currently selling the desired item"));
-            }
+            actions.Add(new Action($"The seed shop is open {ShopSchedule.ShopOpen("SeedShop")}"));
+            
+            
 
-            string s = $"All shop ids: {string.Join(", ", ShopData.Keys.ToArray())}";
-
-            actions.Add(new Action(s));
 
 
             Menu.SetTasks(actions);

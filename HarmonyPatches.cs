@@ -55,15 +55,23 @@ namespace Stardew_100_Percent_Mod
                 Log($"location: {location}");
                 Log($"ownerArea: {ownerArea}");
                 Log($"maxOwnerY: {maxOwnerY}");
+                Log($"forceOPen: {forceOpen}");
 
                 GameLocation? seedShop = Game1.locations.FirstOrDefault(l => l is SeedShop);
                 if (seedShop != null) 
                 {
                     Log((seedShop.DisplayName == location.DisplayName).ToString());
+                    Log($"Seed shop display name: {seedShop.DisplayName}");
                 }
 
                 
             }
+        }
+
+        internal static void lockedDoorWarp_Postfix(GameLocation __instance, Point tile, string locationName, int openTime, int closeTime, string npcName, int minFriendship)
+        {
+            Log($"lockedDoorWarp_Postfix called\nTile: {tile}\nLocation name: {locationName}\nOpen time: {openTime}\nClose time: {closeTime}\nNPC name: {npcName}\nMin Friendship: {minFriendship}");
+            Log($"Instance: {__instance}");
         }
 
         private static void Log(string message, LogLevel logLevel = LogLevel.Debug)
