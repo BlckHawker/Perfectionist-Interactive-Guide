@@ -42,10 +42,10 @@ namespace Stardew_100_Percent_Mod
             }
         }
 
-        internal static void TryOpenShopMenu_Postfix(ref bool __result, string shopId, GameLocation location, Rectangle? ownerArea, int? maxOwnerY, bool forceOpen, bool playOpenSound, Action<string> showClosedMessage)
+        internal static void TryOpenShopMenu_Postfix_1(ref bool __result, string shopId, GameLocation location, Rectangle? ownerArea, int? maxOwnerY, bool forceOpen)
         {
             //todo verify that the method is being called properly
-            Log("TryOpenShopMenu_Postfix called");
+            Log("TryOpenShopMenu_Postfix_1 called");
 
             //if you can call the method, then when the result is true, check what the other paramters for that specific shop id
             if (__result)
@@ -55,17 +55,20 @@ namespace Stardew_100_Percent_Mod
                 Log($"location: {location}");
                 Log($"ownerArea: {ownerArea}");
                 Log($"maxOwnerY: {maxOwnerY}");
-                Log($"forceOPen: {forceOpen}");
-
-                GameLocation? seedShop = Game1.locations.FirstOrDefault(l => l is SeedShop);
-                if (seedShop != null) 
-                {
-                    Log((seedShop.DisplayName == location.DisplayName).ToString());
-                    Log($"Seed shop display name: {seedShop.DisplayName}");
-                }
-
-                
+                Log($"forceOpen: {forceOpen}");                
             }
+        }
+
+        internal static void TryOpenShopMenu_Postfix_2(ref bool __result, string shopId, string ownerName)
+        { 
+            Log("TryOpenShopMenu_Postfix_2 called");
+
+            if (__result)
+            {
+                Log($"ShodId: {shopId}");
+                Log($"ownerName: {ownerName}");
+            }
+
         }
 
         internal static void lockedDoorWarp_Postfix(GameLocation __instance, Point tile, string locationName, int openTime, int closeTime, string npcName, int minFriendship)

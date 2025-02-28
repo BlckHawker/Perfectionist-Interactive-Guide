@@ -45,7 +45,6 @@ namespace Stardew_100_Percent_Mod
 
             HarmonyPatches.Initialize(Monitor);
 
-            Type[] arr = new Type[] { typeof(string), typeof(GameLocation), typeof(Rectangle), typeof(int), typeof(bool), typeof(bool), typeof(Action<string>) };
 
             var harmony = new Harmony(this.ModManifest.UniqueID);
 
@@ -61,8 +60,13 @@ namespace Stardew_100_Percent_Mod
 
 
             harmony.Patch(
-               original: AccessTools.Method(typeof(Utility), nameof(Utility.TryOpenShopMenu), arr),
-               postfix: new HarmonyMethod(typeof(HarmonyPatches), nameof(HarmonyPatches.TryOpenShopMenu_Postfix))
+               original: AccessTools.Method(typeof(Utility), nameof(Utility.TryOpenShopMenu), new Type[] { typeof(string), typeof(GameLocation), typeof(Rectangle), typeof(int), typeof(bool), typeof(bool), typeof(Action<string>) }),
+               postfix: new HarmonyMethod(typeof(HarmonyPatches), nameof(HarmonyPatches.TryOpenShopMenu_Postfix_1))
+            );
+
+            harmony.Patch(
+               original: AccessTools.Method(typeof(Utility), nameof(Utility.TryOpenShopMenu), new Type[] { typeof(string), typeof(string), typeof(bool) }),
+               postfix: new HarmonyMethod(typeof(HarmonyPatches), nameof(HarmonyPatches.TryOpenShopMenu_Postfix_2))
             );
 
 
@@ -145,25 +149,36 @@ namespace Stardew_100_Percent_Mod
                     shopApplicableShopNames.Add(kv.Key);
                 }
 
-
-
-                //todo only show shops who are open at that current time
-
-
-
-
-
+                
             }
 
-            actions.Add(new Action($"The seed shop is open {ShopSchedule.ShopOpen("SeedShop")}"));
-            
-            
+            actions.Add(new Action($"Shop that sell the desired seed: {Join(shopApplicableShopNames)}"));
+
+            //todo only show shops who are open at that current time
+
+            //List<string> openStores = shopApplicableShopNames.Where(s => ShopSchedule.ShopOpen(s)).ToList();
+
+            List<string> openStores = shopApplicableShopNames.Where(s => true).ToList();
+
+
+            actions.Add(new Action($"Shops that are open and sell the desired seed: {Join(openStores)}"));
+
+            //show the open store that is selling the item for the cheapest
+            List<string> shopsByPrice = openStores.OrderBy(shopId => ShopItemsCache[shopId].First(item => item.SyncedKey == TaskManager.ItemIds[desiredItem]).Price ).ToList();
+            List<int> prices = shopsByPrice.Select(shopId => ShopItemsCache[shopId].First(item => item.SyncedKey == TaskManager.ItemIds[desiredItem]).Price).ToList();
+
+
+            string s = "Shops by price:";
+            for (int i = 0; i < shopsByPrice.Count; i++)
+            {
+                s += $" {shopsByPrice[i]} ({prices[i]})";
+            }
+
+            actions.Add(new Action($"Shops by price: {s}"));
 
 
 
             Menu.SetTasks(actions);
-
-            //check the selling price for green beans
 
             TaskManager.PostFix();
         }
@@ -195,6 +210,11 @@ namespace Stardew_100_Percent_Mod
         private void Log(string message, LogLevel logLevel = LogLevel.Debug)
         {
             this.Monitor.Log(message, logLevel);
+        }
+
+        private string Join<T>(IEnumerable<T> collection)
+        {
+            return string.Join(", ", collection);
         }
 
         

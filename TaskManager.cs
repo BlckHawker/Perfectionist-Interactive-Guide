@@ -219,7 +219,7 @@ namespace Stardew_100_Percent_Mod
             houseUpgradeTrees[2] = ConstructionTask(houseUpgrade3, false);
 
 
-            DecisionTreeNode parsnipSeedsTree = GetProducableItemTree(ItemName.ParsnipSeeds, 15);
+            DecisionTreeNode get1ParsnipSeed = GetProducableItemTree(ItemName.ParsnipSeeds, 1);
 
             DecisionTreeNode becomeFriendsWithJas = BecomeFriendsWithNPC("Jas");
 
@@ -231,7 +231,8 @@ namespace Stardew_100_Percent_Mod
 
             DecisionTreeNode getSmallMoney = GetSmallMoney(50000);
 
-            roots = new List<DecisionTreeNode>() { getSmallMoney };
+
+            roots = new List<DecisionTreeNode>() { get1ParsnipSeed };
         }
 
 
@@ -681,39 +682,30 @@ namespace Stardew_100_Percent_Mod
                 return ItemLocator.LocationHasItem(location, qualifiedItemId);
             }
 
-            //The farm has the desired item
-            bool FarmHasItem()
-            {
-                return LocationHasItem("Farm");
-            }
-
-            //The farm house has the desired item
-            bool FarmHouseHasItem()
-            {
-                return LocationHasItem("FarmHouse");
-            }
             #endregion
 
             #endregion
 
             #region Tree
-            //there is at least one loction where the player has item to in the farm
-            Decision playerHasItemOnFarm = new Decision(
-                new GetItemAction(qualifiedItemId, GetItemCountFromFarm),
-                new GetItemAction(qualifiedItemId, GetItemFromStore),
-                new Decision.DecisionDelegate(FarmHasItem));
 
-            //there is at least one loction where the player has item to in the farm house
-            Decision playerHasItemOnFarmHouse = new Decision(
-                new GetItemAction(qualifiedItemId, GetItemCountFromFarmHouse),
-                playerHasItemOnFarm,
-                new Decision.DecisionDelegate(FarmHouseHasItem));
 
+
+            //thre is at least one chest at {location} where the player has at least once instance of the item on the farm
+            List<string> locationNames = Game1.locations.Select(l => l.NameOrUniqueName).ToList();
+            List<Decision> locationHasItemDecisions = locationNames.Select(n => new Decision(() => LocationHasItem(n))).ToList();
+
+            for (int i = 0; i < locationHasItemDecisions.Count; i++)
+            {
+                Decision decision = locationHasItemDecisions[i];
+                string locationName = locationNames[i];
+                decision.SetTrueNode(new Action(() => GetItemCountFromLocation(locationName)));
+                decision.SetFalseNode(i == locationNames.Count - 1 ? new Action("Item can be bought check") : locationHasItemDecisions[i + 1]);
+            }
+ 
             //the player has {desiredAmount} {item} on them
-            Decision playerHasItemInInventory = new Decision(
-                actionAfterward == null ? completeAction : actionAfterward,
-                playerHasItemOnFarmHouse,
-                new Decision.DecisionDelegate(() => TaskManager.PlayerHasDesieredAmountOfItem(qualifiedItemId, desiredAmount, decreaseCount)));
+            Decision playerHasItemInInventory = new Decision(() => TaskManager.PlayerHasDesieredAmountOfItem(qualifiedItemId, desiredAmount, decreaseCount));
+            playerHasItemInInventory.SetTrueNode(actionAfterward == null ? completeAction : actionAfterward);
+            playerHasItemInInventory.SetFalseNode(locationHasItemDecisions[0]);
 
             return new GetItemNode(playerHasItemInInventory, qualifiedItemId, desiredAmount);
             #endregion
