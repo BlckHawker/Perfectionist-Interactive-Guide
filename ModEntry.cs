@@ -176,11 +176,21 @@ namespace Stardew_100_Percent_Mod
 
             actions.Add(new Action($"Shops by price: {s}"));
 
+            GameLocation currentLocation = Game1.player.currentLocation;
+
+            actions.Add(new Action($"Current location: {GetLocationStr(currentLocation)}"));
+
+            //Log(Join(Game1.locations.Select(l => GetLocationStr(l)), "\n"));
 
 
             Menu.SetTasks(actions);
 
             TaskManager.PostFix();
+        }
+
+        private string GetLocationStr(GameLocation l)
+        {
+            return $"{l.DisplayName} ({l.NameOrUniqueName})";
         }
 
         private void OnRenderedHud(object? sender, RenderedHudEventArgs e) 
@@ -212,9 +222,9 @@ namespace Stardew_100_Percent_Mod
             this.Monitor.Log(message, logLevel);
         }
 
-        private string Join<T>(IEnumerable<T> collection)
+        private string Join<T>(IEnumerable<T> collection, string seperator = ", ")
         {
-            return string.Join(", ", collection);
+            return string.Join(seperator, collection);
         }
 
         
