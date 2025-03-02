@@ -36,7 +36,7 @@ namespace Stardew_100_Percent_Mod
         public override void Entry(IModHelper helper)
         {
             this.helper = helper;
-            helper.Events.GameLoop.UpdateTicking += OnUpdateTicked;
+            helper.Events.GameLoop.UpdateTicking += OnUpdateTicking;
             helper.Events.GameLoop.SaveLoaded += SaveLoaded;
             helper.Events.Display.RenderedHud += OnRenderedHud;
             helper.Events.Display.Rendered += Rendered;
@@ -85,7 +85,7 @@ namespace Stardew_100_Percent_Mod
             TaskManager.InitalizeInstance(Log);
         }
 
-        private void OnUpdateTicked(object? sender, UpdateTickingEventArgs e)
+        private void OnUpdateTicking(object? sender, UpdateTickingEventArgs e)
         {
             if (!Context.IsWorldReady)
                 return;
